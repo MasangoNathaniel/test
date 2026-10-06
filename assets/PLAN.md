@@ -29,3 +29,10 @@ Suggested Higgsfield spend:
 1. **Optional:** one short abstract background loop (dark tech or bokeh, like co58's rotating backgrounds) to sit behind shots 2 and 4.
 2. **Optional:** an AI pass on the logo reveal, image-to-video from the mark to the full logo. This is risky: AI tends to garble lettering. I'd rather build the logo reveal precisely by hand.
 I'll quote exact credits before generating anything.
+
+## Reference analysis — final status
+- **YGcr8aX6X20 (10s):** matte black with small white outlined triangles as fixed frame decoration, fast typewriter-click sound design. The ending has a torn-paper accent strip, then a centred logo with a tagline.
+- **eXqADiihD9g (9s):** solid accent background, black type glitching in with horizontal motion blur, a typewriter text swap over a dashed line, and an arrow icon sliding in with a bounce on the end card.
+- **O3iIIAxppPo:** Higgsfield analysis failed ("Something went wrong"), so this one was not analysed.
+- Pinterest pins: not viewable from this environment (blocked).
+All four analysed refs agree on the style: flat 2D kinetic type, dark base plus one accent colour, a centred logo end card. v1 follows that.
