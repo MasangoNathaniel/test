@@ -10,6 +10,7 @@
     <asset id="r6" name="S5_dont_waste" start="0s" duration="68/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S5_dont_waste.mov"/></asset>
     <asset id="r7" name="S6_logo_cta" start="0s" duration="82/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S6_logo_cta.mov"/></asset>
     <asset id="rvo" name="voiceover" start="0s" duration="693/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/voiceover.m4a"/></asset>
+    <asset id="rbed" name="sofwire_music_sfx_bed" start="0s" duration="693/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/audio/sofwire_music_sfx_bed.wav"/></asset>
   </resources>
   <library>
     <event name="Sofwire Ad">
@@ -18,6 +19,7 @@
           <spine>
         <asset-clip ref="r2" offset="0/30s" name="S1_hook" duration="129/30s">
           <asset-clip ref="rvo" lane="-1" offset="0s" name="VO" duration="693/30s" audioRole="dialogue"/>
+          <asset-clip ref="rbed" lane="-2" offset="0s" name="Music+SFX bed" duration="693/30s" audioRole="music"/>
         </asset-clip>
         <asset-clip ref="r3" offset="129/30s" name="S2_no_results" duration="141/30s">
         </asset-clip>

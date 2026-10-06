@@ -55,3 +55,18 @@ If the XML gives you any trouble, the six shots are numbered. Drop them on V1 in
 - Word timings come from the voiceover's pauses and energy dips, not a transcript. Each beat lands on its phrase, but nudge a pop by a frame or two if a word reads early or late.
 - Fonts: Inter Display (Black/Bold). Colours: Sofwire blue #0B52D0, a lighter blue #5C91FF for text on dark, charcoal #231F20, and red #FF4242 for the "bad" stats.
 - To re-render after copy changes: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov`
+
+## Music + sound design (`audio/`)
+Original music, composed and synthesised for this edit (no library tracks, so no licensing issues). Melodic house, 124 BPM, A minor (Am9, Fmaj9, Cmaj9, G6/9).
+
+| File | Use |
+|---|---|
+| `sofwire_music_sfx_bed.wav` | **Drop this on A2 at 0:00.** Music and SFX are already ducked under the voiceover. Voiceover and bed both at 0 dB, then master to −14 LUFS. |
+| `music_unducked.wav` / `sfx_unducked.wav` | Separate stems, not ducked, if you'd rather do your own ducking or rebalance music against SFX. |
+| `full_mix_reference_-14LUFS.wav` | Voiceover + bed mixed at −14 LUFS / −2.7 dBTP (social spec), for reference. |
+
+All files are 48 kHz, 24-bit stereo, 23.10s, sample-aligned to the picture from 0:00. The FCPXML now puts the bed on lane A2.
+
+**Arc:** dark Am9 swell and power-on → 4 muffled bars of tension, with the filter slowly opening under "zero sales / no results" → riser and the kick drops out → **the drop at 9.00s on the blue fill ("Don't worry")** → full groove with a pumping pad and ping-pong pluck arp → **tape-stop at 18.10s**, so "Don't waste" lands on hits in silence → sub swell and reverse shimmer → **Cmaj9 bloom with a bell arpeggio on the logo build** → rings out on the CTA.
+
+To regenerate: `python3 build/sound.py <voiceover 48k wav> out/audio`
