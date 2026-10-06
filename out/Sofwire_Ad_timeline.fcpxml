@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+<fcpxml version="1.9">
+  <resources>
+    <format id="r1" name="FFVideoFormat1080x1920p30" frameDuration="1/30s" width="1080" height="1920"/>
+    <asset id="r2" name="S1_hook" start="0s" duration="129/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S1_hook.mov"/></asset>
+    <asset id="r3" name="S2_no_results" start="0s" duration="141/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S2_no_results.mov"/></asset>
+    <asset id="r4" name="S3_free_consultancy" start="0s" duration="119/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S3_free_consultancy.mov"/></asset>
+    <asset id="r5" name="S4_action_plan" start="0s" duration="154/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S4_action_plan.mov"/></asset>
+    <asset id="r6" name="S5_dont_waste" start="0s" duration="68/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S5_dont_waste.mov"/></asset>
+    <asset id="r7" name="S6_logo_cta" start="0s" duration="82/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S6_logo_cta.mov"/></asset>
+    <asset id="rvo" name="voiceover" start="0s" duration="693/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/voiceover.m4a"/></asset>
+  </resources>
+  <library>
+    <event name="Sofwire Ad">
+      <project name="Sofwire_Ad_9x16">
+        <sequence format="r1" duration="693/30s" tcStart="0s" audioLayout="stereo" audioRate="48k">
+          <spine>
+        <asset-clip ref="r2" offset="0/30s" name="S1_hook" duration="129/30s">
+          <asset-clip ref="rvo" lane="-1" offset="0s" name="VO" duration="693/30s" audioRole="dialogue"/>
+        </asset-clip>
+        <asset-clip ref="r3" offset="129/30s" name="S2_no_results" duration="141/30s">
+        </asset-clip>
+        <asset-clip ref="r4" offset="270/30s" name="S3_free_consultancy" duration="119/30s">
+        </asset-clip>
+        <asset-clip ref="r5" offset="389/30s" name="S4_action_plan" duration="154/30s">
+        </asset-clip>
+        <asset-clip ref="r6" offset="543/30s" name="S5_dont_waste" duration="68/30s">
+        </asset-clip>
+        <asset-clip ref="r7" offset="611/30s" name="S6_logo_cta" duration="82/30s">
+        </asset-clip>
+          </spine>
+        </sequence>
+      </project>
+    </event>
+  </library>
+</fcpxml>
