@@ -1,9 +1,18 @@
 {
   "status": "pending",
-  "source": "https://focusframe50.pixieset.com/",
-  "notes": "Not measured yet. Run scripts/analyze_style.py on 15-40 finished portfolio photos to fill this in.",
+  "source": "/Volumes/Nate Drive/Photos",
+  "notes": "Not measured yet. On first use, run scripts/analyze_style.py on 15-40 finished photos from '/Volumes/Nate Drive/Photos'.",
   "adjustments": {
-    "hue_shifts": {"red": 0, "orange": 0, "yellow": 0, "green": 0, "aqua": 0, "blue": 0, "purple": 0, "magenta": 0},
+    "hue_shifts": {
+      "red": 0,
+      "orange": 0,
+      "yellow": 0,
+      "green": 0,
+      "aqua": 0,
+      "blue": 0,
+      "purple": 0,
+      "magenta": 0
+    },
     "grain": 0.0,
     "sharpen": 0,
     "vignette_override": null,

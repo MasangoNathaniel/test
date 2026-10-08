@@ -35,8 +35,8 @@ def collect(paths):
     files = []
     for p in map(Path, paths):
         if p.is_dir():
-            files += sorted(f for f in p.rglob("*") if f.suffix.lower() in EXTS)
-        elif p.suffix.lower() in EXTS:
+            files += sorted(f for f in p.rglob("*") if f.suffix.lower() in EXTS and not f.name.startswith("._"))
+        elif p.suffix.lower() in EXTS and not p.name.startswith("._"):
             files.append(p)
     return files
 

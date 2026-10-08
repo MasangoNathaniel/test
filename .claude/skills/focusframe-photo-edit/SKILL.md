@@ -22,12 +22,18 @@ Requires Python 3 with Pillow and numpy.
 
 Open `style/profile.json`. If `"status"` is `"pending"`, the user's style hasn't
 been measured yet. Don't quietly fall back to a generic "nice" edit, because the
-whole point is that the edits look like *their* work. Tell them, and build the
-profile first (next section) from the portfolio or from photos they provide.
+whole point is that the edits look like *their* work. Build the profile first
+(next section). The user keeps their finished photos on an external drive at
+`/Volumes/Nate Drive/Photos`. If that folder exists, use it straight away. If it
+doesn't, the drive probably isn't plugged in, so tell them and ask them to
+connect it or point you at another folder.
+
+Use absolute paths to the scripts (this skill's folder) and quote paths with spaces, such as `"/Volumes/Nate Drive/Photos"`.
 
 ## Building or refreshing the style profile
 
 1. **Get 15–40 finished, edited photos** that represent the look. Sources, in order of preference:
+   - The user's photo folder on their external drive: `/Volumes/Nate Drive/Photos`. If it holds more than about 40 images, or includes subfolders of raw or unedited files, pick 15–40 finished edits covering a range of subjects and lighting, and tell the user which ones you used. Skip RAW files (`.CR3`, `.NEF`, `.ARW`, `.DNG`) and macOS `._*` metadata files.
    - The portfolio at https://focusframe50.pixieset.com/ . Pixieset pages load images from `images.pixieset.com`. Download the largest size available from each gallery. If the network blocks the site, say so and ask for another source.
    - A folder the user points to: in the repo, an upload, or a Google Drive folder through the Drive connector.
    Use final edits, not raw files. A mix of subjects (portrait, landscape, low light) gives a profile that generalises.
