@@ -28,7 +28,7 @@ class Server:
         self.app = App(self.session, **app_kw)
         self.thread = threading.Thread(target=self.app.serve, kwargs={"port": 0, "open_window": False}, daemon=True)
         self.thread.start()
-        for _ in range(200):
+        for _ in range(3000):  # up to 30 s on slow CI machines
             if self.app.httpd and self.app.httpd.server_address[1]:
                 break
             time.sleep(0.01)

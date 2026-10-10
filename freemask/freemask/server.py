@@ -21,6 +21,19 @@ from .session import Busy, Session
 WEB = Path(__file__).parent / "web"
 
 
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def server_bind(self):
+        # HTTPServer.server_bind does a reverse-DNS lookup (socket.getfqdn) that can stall
+        # for seconds on macOS. We only ever serve 127.0.0.1, so skip it.
+        import socketserver
+
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name, self.server_port = host, port
+
+
 class App:
     """Owns the session and the server's lifecycle (heartbeat, quit, done-file)."""
 
@@ -86,8 +99,7 @@ class App:
 
     def serve(self, host: str = "127.0.0.1", port: int = 0, open_window: bool = True):
         handler = type("Handler", (Handler,), {"app": self})
-        self.httpd = ThreadingHTTPServer((host, port), handler)
-        self.httpd.daemon_threads = True
+        self.httpd = _Server((host, port), handler)
         url = f"http://{host}:{self.httpd.server_address[1]}/"
         print(f"FreeMask is running at {url}")
         threading.Thread(target=self._watchdog, daemon=True).start()
