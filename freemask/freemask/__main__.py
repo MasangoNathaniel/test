@@ -36,6 +36,13 @@ def run():
         except OSError:
             pass
     done_file = _arg("--done-file")
+    if done_file:  # first heartbeat for the Resolve script, before the slow imports
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(done_file)), exist_ok=True)
+            with open(done_file + ".alive", "w") as fh:
+                fh.write(str(int(__import__("time").time())))
+        except OSError:
+            pass
     try:
         from .cli import main
 

@@ -13,6 +13,9 @@
 
 local FREEMASK_HOME = [[__FREEMASK_HOME__]]
 
+local STARTUP_TIMEOUT = FREEMASK_STARTUP_TIMEOUT or 180   -- seconds for the app to start
+local HEARTBEAT_TIMEOUT = FREEMASK_HEARTBEAT_TIMEOUT or 60 -- seconds without a heartbeat
+
 local SEP = package.config:sub(1, 1)
 local IS_WIN = SEP == "\\"
 
@@ -162,6 +165,7 @@ local function main()
     os.execute('mkdir -p ' .. q(out_dir))
   end
   os.remove(done_file)
+  os.remove(done_file .. ".alive")
 
   local args = {
     "-m", "freemask", q(source),
@@ -184,11 +188,27 @@ local function main()
   log("Opening " .. basename(path) .. " (frames " .. first .. "-" .. last .. ") in FreeMask…")
   os.execute(cmd)
 
+  -- Wait for FreeMask to finish. It writes a heartbeat every few seconds; if that
+  -- stops (crash, force-quit, computer slept mid-launch…) we stop waiting.
+  local alive_file = done_file .. ".alive"
+  local launched = os.time()
   while not exists(done_file) do
     sleep(1)
+    local f = io.open(alive_file, "r")
+    local beat = f and tonumber(f:read("*l") or "")
+    if f then f:close() end
+    local now = os.time()
+    if (beat and now - beat > HEARTBEAT_TIMEOUT) or (not beat and now - launched > STARTUP_TIMEOUT) then
+      if not exists(done_file) then
+        os.remove(alive_file)
+        log("FreeMask stopped responding or closed unexpectedly. Details: " .. log_file)
+        return false
+      end
+    end
   end
   local result = read_kv(done_file)
   os.remove(done_file)
+  os.remove(alive_file)
 
   if result.error then
     log("FreeMask stopped with an error: " .. result.error)

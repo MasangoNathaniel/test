@@ -89,9 +89,11 @@ resolve = obj({
 
 
 def run_lua(home, clip_path, *, launcher=None, left=0, duration=12, playhead="01:00:04:05",
-            has_item=True, has_media=True, has_timeline=True):
+            has_item=True, has_media=True, has_timeline=True, extra_globals=None):
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
+    for k, v in (extra_globals or {}).items():
+        g[k] = v
     g.CLIP_PATH = str(clip_path)
     g.LEFT, g.DURATION, g.PLAYHEAD_TC = left, duration, playhead
     g.HAS_ITEM, g.HAS_MEDIA, g.HAS_TIMELINE = has_item, has_media, has_timeline
@@ -239,6 +241,40 @@ def test_error_from_app_is_reported(home, clip):
     assert r["imports"] == []
 
 
+def test_gives_up_if_app_never_starts(home, clip):
+    t0 = time.time()
+    r = run_lua(home, clip, launcher=lambda cmd: None, extra_globals={"FREEMASK_STARTUP_TIMEOUT": 1})
+    assert r["ok"] is False and time.time() - t0 < 30
+    assert any("stopped responding or closed unexpectedly" in p for p in r["printed"])
+
+
+def test_gives_up_if_heartbeat_goes_stale(home, clip):
+    def launcher(cmd):
+        done = parse_cmd(cmd)["done-file"]
+        Path(done + ".alive").write_text(str(int(time.time()) - 600))  # app died long ago
+
+    r = run_lua(home, clip, launcher=launcher)
+    assert r["ok"] is False
+    assert any("stopped responding" in p for p in r["printed"])
+
+
+def test_waits_while_heartbeat_is_fresh(home, clip):
+    def launcher(cmd):
+        done = Path(parse_cmd(cmd)["done-file"])
+
+        def app():
+            for _ in range(4):  # "running" for a while, beating
+                Path(str(done) + ".alive").write_text(str(int(time.time())))
+                time.sleep(0.5)
+            done.write_text("")
+
+        threading.Thread(target=app, daemon=True).start()
+
+    r = run_lua(home, clip, launcher=launcher, extra_globals={"FREEMASK_STARTUP_TIMEOUT": 1,
+                                                              "FREEMASK_HEARTBEAT_TIMEOUT": 5})
+    assert r["ok"] is True and any("Closed without exporting" in p for p in r["printed"])
+
+
 def test_image_sequence_uses_folder(home, tmp_path):
     seq = tmp_path / "seq"
     seq.mkdir()
@@ -275,7 +311,8 @@ def test_end_to_end(home, clip, monkeypatch):
     monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(Path(__file__).parent), str(ROOT)]))
 
     result = {}
-    t = threading.Thread(target=lambda: result.update(run_lua(home, clip, left=2, duration=10, playhead="01:00:04:03")))
+    t = threading.Thread(target=lambda: result.update(run_lua(home, clip, left=2, duration=10, playhead="01:00:04:03")),
+                         daemon=True)
     t.start()
 
     log = clip.parent / "A001_C002_freemask" / "A001_C002_2-11_freemask.log"

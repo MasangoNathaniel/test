@@ -68,10 +68,22 @@ class App:
         if self.httpd:
             self.httpd.shutdown()
 
+    def heartbeat(self):
+        """Tell the Resolve script we're still alive (it gives up if this goes stale)."""
+        if self.done_file:
+            try:
+                Path(self.done_file + ".alive").write_text(str(int(time.time())))
+            except OSError:
+                pass
+
     def _watchdog(self):
+        last_beat = 0.0
         while not self._stopping:
             time.sleep(0.5)
             now = time.time()
+            if now - last_beat > 5:
+                self.heartbeat()
+                last_beat = now
             job = self.session.job
             busy = job is not None and not job.done and job.kind == "export"
             if busy:
@@ -114,6 +126,8 @@ class App:
             try:
                 self.write_done_file()
             finally:
+                if self.done_file:
+                    Path(self.done_file + ".alive").unlink(missing_ok=True)
                 self.session.close()
         return url
 

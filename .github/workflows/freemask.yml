@@ -15,6 +15,7 @@ jobs:
   tests:
     name: Tests · ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -38,16 +39,17 @@ jobs:
         run: |
           SAM2_BUILD_CUDA=0 pip install --no-build-isolation "sam2>=1.1.0"
           pip install "huggingface_hub>=0.23" "numpy>=1.24" "opencv-python-headless>=4.8" "imageio-ffmpeg>=0.5"
-          pip install pytest playwright lupa pyflakes
+          pip install pytest pytest-timeout playwright lupa pyflakes
           python -m playwright install --with-deps chromium
       - name: Lint
         run: python -m pyflakes freemask tests
       - name: Test suite
-        run: python -m pytest tests -v -rs
+        run: python -m pytest tests -v -rs --timeout 300
 
   installer:
     name: Installer · ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
