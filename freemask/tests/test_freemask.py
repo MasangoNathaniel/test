@@ -1,7 +1,6 @@
 """Tests for everything except the SAM 2 network itself (a fake engine stands in for it)."""
 
 import json
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -13,70 +12,12 @@ from freemask.refine import RefineSettings, clean_binary, finish_matte, temporal
 from freemask.tracker import MaskStore, PromptSet, apply_prompts, track
 from freemask.video_io import extract_frames
 
-W, H, N = 320, 180, 12
-
-
-def ball_center(i):
-    return 40 + i * 20, 90
+from fakes import N, H, W, FakeEngine, ball_center, make_clip
 
 
 @pytest.fixture
 def clip(tmp_path):
-    path = tmp_path / "shot.mp4"
-    vw = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 25, (W, H))
-    for i in range(N):
-        img = np.full((H, W, 3), 30, np.uint8)
-        cv2.circle(img, ball_center(i), 25, (230, 230, 230), -1)
-        vw.write(img)
-    vw.release()
-    return path
-
-
-class FakeEngine:
-    """Segments the bright blob under the clicked point and follows it frame to frame."""
-
-    device = "fake"
-
-    def __init__(self, frames_dir, *a, **k):
-        self.dir = Path(frames_dir)
-        self.n = len(list(self.dir.glob("*.jpg")))
-        self.cond = {}  # frame -> {obj: mask}
-
-    def _blob(self, frame, x, y):
-        g = cv2.imread(str(self.dir / f"{frame:05d}.jpg"), cv2.IMREAD_GRAYSCALE)
-        _, labels = cv2.connectedComponents((g > 128).astype(np.uint8))
-        lab = labels[int(y), int(x)]
-        return labels == lab if lab else np.zeros_like(g, bool)
-
-    def set_prompt(self, frame, obj, prompt):
-        if prompt.empty():
-            self.cond.get(frame, {}).pop(obj, None)
-            return {}
-        pos = [pt for pt, lab in zip(prompt.points, prompt.labels) if lab] or [
-            [(prompt.box[0] + prompt.box[2]) / 2, (prompt.box[1] + prompt.box[3]) / 2]]
-        m = self._blob(frame, *pos[0])
-        self.cond.setdefault(frame, {})[obj] = m
-        return {obj: m}
-
-    def remove_object(self, obj):
-        for d in self.cond.values():
-            d.pop(obj, None)
-
-    def propagate(self, start, reverse):
-        prev = dict(self.cond.get(start, {}))
-        rng = range(start, -1, -1) if reverse else range(start, self.n)
-        for f in rng:
-            out = {}
-            for obj, pm in prev.items():
-                if f in self.cond and obj in self.cond[f]:
-                    out[obj] = self.cond[f][obj]
-                    continue
-                ys, xs = np.nonzero(pm)
-                out[obj] = self._blob(f, xs.mean(), ys.mean()) if len(xs) else pm
-                if not out[obj].any():  # moved too far; search the frame
-                    out[obj] = self._blob(f, *ball_center(f))
-            prev = out
-            yield f, out
+    return make_clip(tmp_path / "shot.mp4")
 
 
 # ----------------------------------------------------------------------------- refine
@@ -238,35 +179,3 @@ def test_cli_session_file(clip, tmp_path, monkeypatch):
     cli.main([str(clip), "--headless", "--session", str(sp), "-o", str(out)])
     m = cv2.imread(str(out / "shot_matte" / "shot_matte_000004.png"), cv2.IMREAD_UNCHANGED)
     assert m[y, x] < 1000 and m[10, 10] > 60000  # inverted
-
-
-def test_editor_clicks_views_and_export_without_a_window(clip, tmp_path):
-    from freemask.gui import VIEWS, Editor
-
-    info = extract_frames(str(clip), str(tmp_path / "frames"), max_side=320)
-    eng = FakeEngine(tmp_path / "frames")
-    exported = {}
-    ed = Editor(info, str(tmp_path / "frames"), eng, PromptSet(), RefineSettings(),
-                on_save=lambda e: "x", on_export=lambda e: exported.setdefault("ok", e.store))
-    ed.frame = 3
-    x, y = ball_center(3)
-    s = ed.disp_scale
-    ed.on_mouse(cv2.EVENT_LBUTTONDOWN, int(x * s), int(y * s), 0, None)
-    ed.on_mouse(cv2.EVENT_LBUTTONUP, int(x * s), int(y * s), 0, None)
-    assert ed.store.has(3) and ed.stale
-    ed.on_mouse(cv2.EVENT_RBUTTONDOWN, 5, 5, 0, None)
-    assert ed.prompts.get(3, 1).labels == [1, 0]
-
-    for v in range(len(VIEWS)):
-        ed.view = v
-        img = ed.compose(3)
-        assert img.shape[:2] == (ed.disp_size[1], ed.disp_size[0])
-
-    track(eng, ed.prompts, ed.store, "both")
-    assert ed.store.tracked_count() == N
-
-    # Clearing the only marks removes the object so SAM 2 never sees an empty object.
-    p = ed.prompts.get(3, 1)
-    p.points, p.labels = [], []
-    ed.update_prompt()
-    assert not ed.store.has(0) and not ed.prompts.frames()

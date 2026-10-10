@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import contextlib
 import os
+import threading
+import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -97,19 +99,24 @@ class MaskStore:
         self.shape = (height, width)
         self._data: dict[int, dict[int, np.ndarray]] = {}
         self.hidden: set[int] = set()  # object ids excluded from the final matte
+        self._lock = threading.Lock()  # the UI reads while tracking writes
 
     def set(self, frame: int, obj: int, mask: np.ndarray):
-        self._data.setdefault(frame, {})[obj] = np.packbits(mask.astype(bool), axis=None)
+        packed = np.packbits(mask.astype(bool), axis=None)
+        with self._lock:
+            self._data.setdefault(frame, {})[obj] = packed
 
     def get_obj(self, frame: int, obj: int) -> np.ndarray | None:
-        packed = self._data.get(frame, {}).get(obj)
+        with self._lock:
+            packed = self._data.get(frame, {}).get(obj)
         if packed is None:
             return None
         h, w = self.shape
         return np.unpackbits(packed, count=h * w).reshape(h, w).astype(bool)
 
     def objects_at(self, frame: int) -> list[int]:
-        return sorted(self._data.get(frame, {}))
+        with self._lock:
+            return sorted(self._data.get(frame, {}))
 
     def combined(self, frame: int) -> np.ndarray | None:
         """Union of all visible objects on a frame (the final matte)."""
@@ -122,13 +129,18 @@ class MaskStore:
         return out
 
     def drop(self, frame: int, obj: int):
+        with self._lock:
+            self._drop(frame, obj)
+
+    def _drop(self, frame: int, obj: int):
         self._data.get(frame, {}).pop(obj, None)
         if frame in self._data and not self._data[frame]:
             del self._data[frame]
 
     def drop_object(self, obj: int):
-        for frame in list(self._data):
-            self.drop(frame, obj)
+        with self._lock:
+            for frame in list(self._data):
+                self._drop(frame, obj)
 
     def has(self, frame: int) -> bool:
         return bool(self._data.get(frame))
@@ -137,7 +149,8 @@ class MaskStore:
         return len(self._data)
 
     def clear(self):
-        self._data.clear()
+        with self._lock:
+            self._data.clear()
 
 
 # --------------------------------------------------------------------------- engine
@@ -160,6 +173,9 @@ class Sam2Engine:
 
     def __init__(self, frames_dir: str, model: str = "small", device: str | None = None):
         os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+        # SAM 2's optional compiled extension isn't installed; its fallback is fine.
+        warnings.filterwarnings("ignore", message=".*cannot import name '_C'.*")
+        warnings.filterwarnings("ignore", message=".*Skipping the post-processing step.*")
         import torch
         from sam2.sam2_video_predictor import SAM2VideoPredictor
 

@@ -1,88 +1,121 @@
 # FreeMask: Magic Mask for the free DaVinci Resolve
 
-FreeMask does the job of Resolve Studio's **Magic Mask** on any computer. You click on a
-person or object, it tracks your selection **forwards and backwards** through the shot, and
-it exports a matte that the **free** version of DaVinci Resolve can use for grading,
-keying, blurring or compositing.
+FreeMask does the job of Resolve Studio's **Magic Mask** in the **free** version of
+DaVinci Resolve. Put the playhead on a clip and choose **Workspace › Scripts › FreeMask**.
+Click what you want, press **Track**, then **Export**. The matte and a cutout of your
+subject come back into Resolve, lined up on a new track above your clip.
 
-The tracking is done by Meta's **SAM 2.1** (Segment Anything 2) video model. It's one of
-the strongest openly available video segmentation models: it works on people, faces,
-cars, animals, products, skies, and almost anything else you can click on. FreeMask adds
-the parts that make it work like Magic Mask: click/box selection, multi-frame
-corrections, bidirectional tracking, Magic-Mask-style refine controls, and matte export.
+![FreeMask editor](docs/editor.png)
 
-| Magic Mask feature                         | FreeMask                                                      |
-|--------------------------------------------|---------------------------------------------------------------|
-| Draw strokes on the subject                | Left click = add, right click = subtract, drag = box          |
-| Track forward / backward / both            | `]` / `[` / `T`                                                |
-| Fix a frame where it drifts, re-track      | Click on any frame, press `T` again. All marked frames are used |
-| Multiple masks                             | Objects `1`–`9`, combined into one matte (`H` hides one)       |
-| Quality: Faster / Better                   | `--model tiny/small/base/large` and `--quality`               |
-| Smart Refine                               | Edge-aware guided-filter snap to real image edges             |
-| Expand / Contract, Blur                    | `grow`, `feather`                                             |
-| Consolidate (reduce chatter)               | `consolidate` (temporal smoothing)                            |
-| Matte finesse: denoise, clean black/white  | `despeckle`, `fill holes`, `clean black`, `clean white`        |
-| Invert                                     | `invert`                                                      |
+The tracking is done by Meta's **SAM 2.1** (Segment Anything 2), one of the strongest
+openly available video segmentation models. It works on people, faces, cars, animals,
+products, skies, and almost anything else you can click on.
+
+| Magic Mask                                   | FreeMask                                                       |
+|----------------------------------------------|----------------------------------------------------------------|
+| Strokes on the subject                       | Click = include, right-click = exclude, drag = box             |
+| Track forward / backward / both              | ▶▶ / ◀◀ / **Track** (or `]` `[` `T`)                           |
+| Fix a frame where it drifts, re-track        | Click on any frame and track again. Every marked frame is used |
+| Multiple masks                               | Objects 1–9, combined into one matte, each one can be hidden   |
+| Quality: Faster / Better                     | `--model tiny/small/base/large`, `--quality`                   |
+| Smart Refine                                 | Smart refine: snaps the edge to the real image edges           |
+| Expand / Contract, Blur                      | Expand / Contract, Feather                                     |
+| Consolidate                                  | Consolidate (temporal smoothing)                               |
+| Matte finesse: denoise, clean black/white    | Denoise, Fill holes, Clean black, Clean white                  |
+| Invert                                       | Invert                                                         |
 
 ---
 
 ## 1. Install (one time)
 
-You need **Python 3.10 or newer** ([python.org](https://www.python.org/downloads/); on
-Windows tick *"Add python.exe to PATH"*).
+You need **Python 3.10 or newer**.
+* **Mac:** install it from [python.org](https://www.python.org/downloads/). The `python3`
+  that comes with macOS is usually too old.
+* **Windows:** install it from python.org and tick **"Add python.exe to PATH"**.
 
-* **Windows:** double-click `install_windows.bat`. If you have an NVIDIA GPU, it installs
-  the GPU build automatically.
-* **Mac / Linux:** in a terminal, run `./install_mac_linux.sh`. Apple Silicon Macs use
-  the GPU (MPS) automatically.
+Then:
 
-The first time you run FreeMask it downloads the model (~180 MB for `small`).
+* **Mac:** double-click **`Install FreeMask (Mac).command`**. If macOS says it can't
+  check the developer, right-click the file, choose **Open**, then confirm. Or run
+  `bash install_mac_linux.sh` in Terminal.
+* **Windows:** double-click **`install_windows.bat`**. If you have an NVIDIA GPU, it uses
+  it automatically.
+* **Linux:** `bash install_mac_linux.sh`
 
-## 2. Mask a shot
+The installer:
+1. creates a private Python environment in `.venv`
+2. installs PyTorch and SAM 2
+3. downloads the model (~180 MB)
+4. adds **FreeMask** to Resolve's **Workspace › Scripts** menu
 
-```bash
-./freemask.sh path/to/shot.mov          # Mac / Linux
-freemask.bat path\to\shot.mov           # Windows (or drag the clip onto freemask.bat)
-```
+Restart Resolve if it was open. Keep the FreeMask folder where it is. If you move it,
+run the installer again.
 
-Image-sequence folders (EXR/DPX/TIFF/PNG/JPG) work too. Pass the folder instead of a file.
+## 2. Use it from DaVinci Resolve
 
-1. Scrub to a frame where the subject is clear (`A`/`D` or the slider).
-2. **Left click** on the subject. The mask appears instantly. **Right click** on anything
-   that got included by mistake, or **drag a box** around the subject.
-3. Press **`T`** to track forwards *and* backwards. It plays back while it tracks.
-4. Scrub through. Wherever the mask slips, click to correct that frame and press `T` again.
-   Every corrected frame becomes a keyframe for the whole track.
-5. Adjust the **Refine** window (grow, feather, smart refine, consolidate…). Press `V` to
-   view the finished matte or the cutout.
-6. Press **`E`** to export. Press **`P`** to save your session so you can come back later.
+1. On the **Edit** or **Cut** page, park the playhead on the clip you want to mask.
+2. **Workspace › Scripts › FreeMask.** FreeMask opens on that exact frame, limited to
+   the part of the clip that's in your edit.
+3. **Click** on the subject. The mask appears instantly. **Right-click** anything that
+   got included by mistake, or **drag a box** around the subject.
+4. Press **Track** (or `T`). It tracks forwards and backwards while you watch.
+5. Scrub the timeline. Where the mask slips, click to correct that frame and track again.
+6. Adjust the **Refine** sliders. Switch the view to *Matte* or *Cutout* to judge them.
+7. Press **Export**, then **Finish & send to Resolve**.
 
-| Key | Action | Key | Action |
-|---|---|---|---|
-| Left click / drag | include point / box | `T` or Space | track both ways |
-| Right click | exclude point | `]` / `[` | track forward / backward |
-| `Z` | undo last mark | `C` | clear marks on this frame |
-| `A` `D` / arrows | prev / next frame | `W` `S` | −10 / +10 frames |
-| `N` | next marked frame | `G` / `J` | first / last frame |
-| `1`–`9` | choose object | `H` | hide/show object in matte |
-| `V` | overlay → matte → cutout → original | `?` | help |
-| `E` | export | `P` | save session |
-| `Q` / Esc | quit (Esc also stops tracking) | | |
+Back in Resolve you'll find:
+* a **FreeMask** bin with the matte (PNG sequence), a matte movie (ProRes) and a cutout
+  (PNG sequence with transparency)
+* the **cutout placed on a new "FreeMask" track** directly above your clip,
+  frame-accurate. Grade the clip underneath and the subject stays untouched, or put
+  titles between the two tracks so your subject stands in front of the text.
 
-### Long shots and speed
+Run FreeMask again on the same clip and it reopens your previous marks.
 
-Work on one shot at a time, as you would with Magic Mask. Use `--start`/`--end` (source
-frame numbers) to process just part of a long file. Rough speed estimates (they vary with
-resolution and how big the subject is):
+### Using the matte on the Colour page
 
-| Hardware | `small` model at default quality |
+1. In the Media Pool, link the matte to your clip. Depending on your Resolve version,
+   right-click the matte and pick its *matte* option, or drag it onto the clip.
+2. On the Colour page, right-click in the node editor, choose **Add Matte**, and pick it.
+   Connect it to a node's **key input**. That node now only grades your subject. Invert
+   the key to grade everything else.
+
+In **Fusion**, drag the matte sequence into the node graph and use it as an effect mask,
+or feed it into a **Matte Control** node.
+
+## 3. The app
+
+| | |
+|---|---|
+| Click / right-click / drag | include point / exclude point / box |
+| `I` `X` `B` | include, exclude or box tool |
+| `T`, `]`, `[` | track both ways, forward, backward |
+| `Esc` | stop tracking |
+| `←` `→` (Shift = 10) · `A` `D` | step frames |
+| `Space` / `K` | play / pause |
+| `Home` / `End` · `N` | first / last frame · next marked frame |
+| `1`–`9` | choose object |
+| `V` | overlay → matte → cutout → original |
+| `C` · `⌘Z` / `Ctrl+Z` | clear this frame's marks · undo |
+| `⌘S` · `⌘E` | save session · export |
+
+You can also run it without Resolve: `./freemask.sh` (Mac/Linux) or `freemask.bat`
+(Windows) opens the app, and you paste in a clip path. `./freemask.sh clip.mov` opens a
+clip directly.
+
+### Speed
+
+Rough estimates; they vary with resolution and how big the subject is:
+
+| Hardware | `small` model, default quality |
 |---|---|
 | NVIDIA RTX GPU | ~10–25 frames/sec |
 | Apple Silicon (M1–M4) | ~2–6 frames/sec |
-| CPU only | ~0.5–2 frames/sec. Use `--model tiny --quality 720` |
+| CPU only | ~0.5–2 frames/sec. Try `--model tiny --quality 720` |
 
 SAM 2 keeps the shot's frames in memory, roughly 12 MB per frame (a 300-frame shot needs
-about 4 GB of RAM). Split very long shots with `--start`/`--end`.
+about 4 GB of RAM). From Resolve, only the part of the clip used in your edit is
+processed.
 
 ### Headless / batch mode
 
@@ -94,74 +127,63 @@ Coordinates are in source pixels, and frame numbers are source frame numbers:
 ./freemask.sh shot.mov --headless --session shot_freemask/shot_session.json        # re-run a saved session
 ```
 
-Run `./freemask.sh --help` for every option.
+## Outputs
 
-## 3. Outputs
+Everything goes to `<clip>_freemask/` next to the source media:
 
-Everything goes to `<clip name>_freemask/` next to the clip (or `--out`):
+| | What you get |
+|---|---|
+| `…_matte/…_matte_000123.png` | 16-bit grayscale matte, white = selected |
+| `…_matte.mov` | the same matte as ProRes 422 HQ |
+| `…_cutout/…_cutout_000123.png` | your footage with the matte as transparency |
+| `…_session.json` | your marks and settings, to resume later |
 
-| Format (`--format`) | What you get | Best for |
-|---|---|---|
-| `png` (default) | `shot_matte/shot_matte_000000.png…`, a 16-bit grayscale matte sequence, white = selected | Colour page external matte, Fusion |
-| `video` | `shot_matte.mov`, a ProRes 422 HQ grayscale matte | Easier media management |
-| `cutout` | `shot_cutout/…png`, RGBA with the matte as alpha | Edit page compositing |
+File numbers are source frame numbers, and mattes are always full resolution.
 
-File numbers match the source frame numbers. If you used `--start 100`, the first file is
-`…_000100.png`, so you can line it up with the clip. The matte is always rendered at the
-clip's full resolution.
+## Troubleshooting
 
-## 4. Use the matte in DaVinci Resolve (free)
+* **Nothing happens in Resolve.** Open **Workspace › Console**. FreeMask prints what it's
+  doing there. The app's own log is `<clip>_freemask/<name>_freemask.log`.
+* **Mac App Store version of Resolve:** Apple's sandbox stops it from launching other
+  apps, so the menu item can't open FreeMask. Use the free download from
+  blackmagicdesign.com instead, or run `./freemask.sh` and paste in the clip path.
+* **"Couldn't open video".** FreeMask can't decode Blackmagic RAW or other camera-raw
+  formats. Render the shot to ProRes or DNxHR first and use that.
+* **It's slow.** Pick a lower quality or the `tiny` model: `--model tiny --quality 720`.
+* **Out of memory.** Use a shorter piece of the clip, or a lower quality.
 
-**A. Colour page (closest to Magic Mask)**
+## Honest limitations
 
-1. Import the matte (the `shot_matte` PNG sequence or `shot_matte.mov`) into the Media Pool.
-2. Link it to your clip as a matte: in recent versions, right-click the matte in the Media
-   Pool and use the **matte** option to attach it to the clip, or drag it onto the clip.
-   The exact wording varies between Resolve versions.
-3. On the Colour page, right-click in the node editor, choose **Add Matte**, and pick the
-   matte. Connect its output to the **key input** (small triangle) of a node. That node's
-   grade now only affects the selection. Invert it in the Key palette to grade everything
-   else.
-
-**B. Edit page (cutout)**
-
-Export with `--format cutout`, put the PNG sequence on the track above the original clip,
-and line it up. You now have the subject isolated with transparency, so you can grade,
-blur or replace the background underneath it.
-
-**C. Fusion page**
-
-Drag the matte sequence into the Fusion node graph (it becomes a MediaIn). Use it as the
-effect mask of any tool, or feed it into a **Matte Control** node to set your clip's alpha.
-
-If a matte looks scaled or offset in Resolve, check that the matte and the clip have the
-same resolution (FreeMask always exports at the source size) and that both start on the
-same frame.
+* FreeMask is a separate app that Resolve launches. The free Resolve doesn't allow
+  plug-ins like Magic Mask inside it, so the matte comes back as media.
+* Fine hair and motion blur are good, but not as soft as a dedicated roto artist would
+  make them. Use *Smart refine* and *Feather*.
 
 ## How it works
 
 ```
-clip ──► frames at tracking resolution ──► SAM 2.1 video predictor
-                                             ▲  your clicks / boxes on any frames
-                                             └► propagate forward + backward with memory
-masks ──► despeckle / fill holes ──► consolidate (temporal) ──► upscale to full res
-      ──► grow/shrink ──► smart refine (guided filter on the real frame) ──► feather
-      ──► clean black/white ──► invert ──► PNG / MOV / RGBA
+Resolve script ─► FreeMask app (local, private: http://127.0.0.1 only)
+clip ─► frames ─► SAM 2.1 video predictor ◄── your clicks/boxes on any frames
+                    └─► tracks forward + backward, remembering every corrected frame
+masks ─► despeckle / fill holes ─► consolidate ─► full-res ─► expand/contract
+      ─► smart refine (guided filter on the real frame) ─► feather ─► clean ─► invert
+      ─► PNG / ProRes / RGBA cutout ─► back into Resolve (bin + track above the clip)
 ```
-
-## Honest limitations
-
-* FreeMask is a separate app, not a plugin inside Resolve. The free Resolve doesn't let
-  outside tools run inside it, so you work on the shot here and import the matte.
-* Fine hair and motion blur are good, but not as soft as a dedicated roto artist would make
-  them. Use `smart refine` + `feather`.
-* Without a GPU it works, but slowly. Use `--model tiny` and a lower `--quality`.
 
 ## Development
 
 ```bash
-pip install pytest
-python -m pytest tests      # uses a stand-in tracker, so no model download is needed
+.venv/bin/pip install pytest playwright lupa
+.venv/bin/python -m pytest tests
 ```
+
+The tests use a stand-in tracker, so they need no model download. They cover:
+* the matte maths
+* the HTTP API
+* the full UI in headless Chromium (clicking, tracking, refining, exporting)
+* the Resolve Lua script, run against a simulated Resolve, end to end
+* the real SAM 2 code path
+
+`python tests/dev_server.py` runs the UI on a synthetic clip.
 
 SAM 2 is © Meta Platforms, Inc., Apache-2.0 licensed.

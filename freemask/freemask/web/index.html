@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FreeMask</title>
+  <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <div class="app" id="app" data-screen="boot">
+
+    <!-- ───────────── Top bar ───────────── -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="/assets/icon.svg" alt="" width="26" height="26">
+        <span class="brand-name">FreeMask</span>
+      </div>
+      <div class="clip-meta" id="clipMeta" hidden>
+        <span class="clip-name" id="clipName"></span>
+        <span class="chip" id="clipRes"></span>
+        <span class="chip" id="clipFps"></span>
+        <span class="chip chip-accent" id="engineChip"></span>
+      </div>
+      <div class="topbar-right">
+        <div class="status-pill" id="statusPill" hidden>
+          <span class="dot"></span><span id="statusText"></span>
+        </div>
+        <button class="btn btn-ghost" id="saveBtn" title="Save session (⌘S)" disabled>
+          <svg class="i"><use href="#i-save"/></svg><span>Save</span>
+        </button>
+        <button class="btn btn-primary" id="exportBtnTop" title="Export mattes (⌘E)" disabled>
+          <svg class="i"><use href="#i-export"/></svg><span>Export</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ───────────── Main ───────────── -->
+    <main class="main">
+      <section class="stage" id="stage">
+
+        <!-- Empty state: open a clip -->
+        <div class="center-card open-card" id="openCard">
+          <div class="open-glow"></div>
+          <img src="/assets/icon.svg" alt="" width="56" height="56">
+          <h1>Mask anything.<br><span class="grad">Track it everywhere.</span></h1>
+          <p class="muted">Open a clip, click what you want, and FreeMask tracks it forwards and backwards.</p>
+          <form id="openForm" class="open-form" autocomplete="off">
+            <label class="field">
+              <span>Clip or image-sequence folder</span>
+              <input id="openPath" type="text" placeholder="/Users/you/Movies/shot.mov" spellcheck="false" required>
+            </label>
+            <div class="field-row">
+              <label class="field"><span>Start frame</span><input id="openStart" type="number" min="0" placeholder="0"></label>
+              <label class="field"><span>End frame</span><input id="openEnd" type="number" min="0" placeholder="last"></label>
+            </div>
+            <button class="btn btn-primary btn-lg" type="submit">Open clip</button>
+          </form>
+          <p class="hint">Tip: in DaVinci Resolve use <b>Workspace › Scripts › FreeMask</b> to send the clip under the playhead straight here.</p>
+        </div>
+
+        <!-- Loading -->
+        <div class="center-card loading-card" id="loadingCard">
+          <div class="ring"><svg viewBox="0 0 120 120">
+            <defs><linearGradient id="ringGrad" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#00d6c9"/></linearGradient></defs>
+            <circle cx="60" cy="60" r="52" class="ring-track"/>
+            <circle cx="60" cy="60" r="52" class="ring-bar" id="ringBar"/>
+          </svg><span id="ringPct">0%</span></div>
+          <h2 id="loadingTitle">Preparing clip</h2>
+          <p class="muted" id="loadingMsg">Reading frames…</p>
+          <button class="btn btn-ghost" id="loadingCancel">Cancel</button>
+        </div>
+
+        <!-- Error -->
+        <div class="center-card error-card" id="errorCard">
+          <div class="err-icon"><svg class="i"><use href="#i-alert"/></svg></div>
+          <h2>Something went wrong</h2>
+          <p class="muted" id="errorMsg"></p>
+          <button class="btn btn-primary" id="errorBack">Open another clip</button>
+        </div>
+
+        <!-- Viewer -->
+        <div class="viewer" id="viewer">
+          <div class="viewer-toolbar glass">
+            <div class="seg" role="group" aria-label="Tool">
+              <button class="seg-btn active" data-tool="include" title="Include — click to add (I)">
+                <svg class="i"><use href="#i-plus"/></svg><span>Include</span></button>
+              <button class="seg-btn" data-tool="exclude" title="Exclude — click to remove (X or right-click)">
+                <svg class="i"><use href="#i-minus"/></svg><span>Exclude</span></button>
+              <button class="seg-btn" data-tool="box" title="Box — drag around the subject (B)">
+                <svg class="i"><use href="#i-box"/></svg><span>Box</span></button>
+            </div>
+            <span class="tb-sep"></span>
+            <button class="icon-btn" id="undoBtn" title="Undo last mark (⌘Z)"><svg class="i"><use href="#i-undo"/></svg></button>
+            <button class="icon-btn" id="clearBtn" title="Clear marks on this frame (C)"><svg class="i"><use href="#i-erase"/></svg></button>
+            <span class="tb-sep"></span>
+            <div class="seg seg-sm" role="group" aria-label="View">
+              <button class="seg-btn active" data-view="overlay" title="Overlay (V)">Overlay</button>
+              <button class="seg-btn" data-view="matte" title="Matte (V)">Matte</button>
+              <button class="seg-btn" data-view="cutout" title="Cutout (V)">Cutout</button>
+              <button class="seg-btn" data-view="original" title="Original (V)">Original</button>
+            </div>
+          </div>
+
+          <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="imgCanvas"></canvas>
+            <canvas id="uiCanvas"></canvas>
+            <div class="coach" id="coach">
+              <svg class="i"><use href="#i-pointer"/></svg>
+              <span><b>Click</b> on what you want to mask · <b>right-click</b> to exclude · <b>drag</b> for a box</span>
+            </div>
+          </div>
+
+          <div class="stale-banner glass" id="staleBanner" hidden>
+            <span>Marks changed — re-track to update every frame</span>
+            <button class="btn btn-primary btn-sm" id="staleTrack">Track</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Sidebar ───────────── -->
+      <aside class="sidebar" id="sidebar">
+        <div class="card">
+          <div class="card-head">
+            <h3>Objects</h3>
+            <button class="link-btn" id="addObject" title="New object">+ New</button>
+          </div>
+          <ul class="objects" id="objects"></ul>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Refine</h3>
+            <button class="link-btn" id="resetRefine">Reset</button>
+          </div>
+          <div class="sliders" id="sliders"></div>
+          <label class="switch-row">
+            <span>Invert matte</span>
+            <input type="checkbox" id="invert"><span class="switch"></span>
+          </label>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Export</h3></div>
+          <div class="formats" id="formats">
+            <button class="fmt active" data-fmt="png"><b>Matte</b><small>16-bit PNG sequence</small></button>
+            <button class="fmt active" data-fmt="video"><b>Matte movie</b><small>ProRes 422 HQ .mov</small></button>
+            <button class="fmt active" data-fmt="cutout"><b>Cutout</b><small>RGBA PNG sequence</small></button>
+          </div>
+          <div class="out-path" id="outPath" title=""></div>
+          <button class="btn btn-primary btn-block" id="exportBtn" disabled>
+            <svg class="i"><use href="#i-export"/></svg><span>Export mattes</span>
+          </button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ───────────── Transport + timeline ───────────── -->
+    <footer class="transport" id="transport">
+      <div class="transport-row">
+        <div class="timecode">
+          <span id="tcFrame">0</span>
+          <small id="tcTotal">/ 0</small>
+        </div>
+
+        <div class="track-controls">
+          <button class="icon-btn" id="trackBack" title="Track backward ([)"><svg class="i"><use href="#i-track-back"/></svg></button>
+          <button class="icon-btn" id="stepBack" title="Previous frame (←)"><svg class="i"><use href="#i-step-back"/></svg></button>
+          <button class="icon-btn play" id="playBtn" title="Play / pause (K)"><svg class="i"><use href="#i-play" id="playIcon"/></svg></button>
+          <button class="icon-btn" id="stepFwd" title="Next frame (→)"><svg class="i"><use href="#i-step-fwd"/></svg></button>
+          <button class="icon-btn" id="trackFwd" title="Track forward (])"><svg class="i"><use href="#i-track-fwd"/></svg></button>
+          <button class="btn btn-primary track-both" id="trackBoth" title="Track both directions (T)">
+            <svg class="i"><use href="#i-track-both"/></svg><span>Track</span>
+          </button>
+        </div>
+
+        <div class="job" id="job" hidden>
+          <div class="job-bar"><div id="jobFill"></div></div>
+          <span id="jobText"></span>
+          <button class="btn btn-ghost btn-sm" id="jobStop">Stop</button>
+        </div>
+        <div class="tracked-info" id="trackedInfo"></div>
+      </div>
+      <div class="timeline" id="timeline">
+        <canvas id="tlCanvas"></canvas>
+      </div>
+    </footer>
+
+    <!-- Export done -->
+    <div class="modal-backdrop" id="doneModal" hidden>
+      <div class="modal glass">
+        <div class="done-check"><svg class="i"><use href="#i-check"/></svg></div>
+        <h2>Mattes exported</h2>
+        <ul class="paths" id="donePaths"></ul>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="doneKeep">Keep editing</button>
+          <button class="btn btn-primary" id="doneFinish">Finish &amp; send to Resolve</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+  </div>
+
+  <!-- Icons (stroke icons, 24px grid) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-box" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+      <symbol id="i-erase" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L11 21"/><path d="M22 21H7M5 11l9 9"/></symbol>
+      <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+      <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="3"/></symbol>
+      <symbol id="i-step-back" viewBox="0 0 24 24"><path d="M17 5v14L8 12z" fill="currentColor"/><path d="M6 5v14"/></symbol>
+      <symbol id="i-step-fwd" viewBox="0 0 24 24"><path d="M7 5v14l9-7z" fill="currentColor"/><path d="M18 5v14"/></symbol>
+      <symbol id="i-track-back" viewBox="0 0 24 24"><path d="M12 6v12L4 12z" fill="currentColor"/><path d="M20 6v12l-8-6z" fill="currentColor"/></symbol>
+      <symbol id="i-track-fwd" viewBox="0 0 24 24"><path d="M4 6v12l8-6z" fill="currentColor"/><path d="M12 6v12l8-6z" fill="currentColor"/></symbol>
+      <symbol id="i-track-both" viewBox="0 0 24 24"><path d="M10 7v10l-7-5z" fill="currentColor"/><path d="M14 7v10l7-5z" fill="currentColor"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M9.9 4.2A10 10 0 0 1 12 4c6.5 0 10 7 10 7a17 17 0 0 1-2.2 3.2M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M3 3l18 18"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9.5"/></symbol>
+      <symbol id="i-pointer" viewBox="0 0 24 24"><path d="m5 3 14 7-6 2-2 6z"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    </defs>
+  </svg>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

@@ -166,7 +166,7 @@ class MatteWriter:
     def _open_video(self):
         self.out_dir.mkdir(parents=True, exist_ok=True)
         w, h, fps = self.info.width, self.info.height, self.info.fps
-        ffmpeg = shutil.which("ffmpeg")
+        ffmpeg = find_ffmpeg()
         if ffmpeg:
             path = self.out_dir / f"{self.name}_matte.mov"
             cmd = [
@@ -219,6 +219,19 @@ class MatteWriter:
 
     def __exit__(self, *exc):
         self.close()
+
+
+def find_ffmpeg() -> str | None:
+    """System ffmpeg, else the copy bundled with the imageio-ffmpeg package."""
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
 
 
 def default_name(source: str) -> str:

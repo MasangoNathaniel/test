@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 
+from . import tracker
 from .refine import RefineSettings
-from .tracker import MODELS, MaskStore, PromptSet, apply_prompts, track
-from .video_io import default_name, extract_frames, safe_remove
+from .session import Session
+from .tracker import MODELS, PromptSet, apply_prompts
 
 
 def _parse_xy(spec: str, n: int, what: str):
@@ -36,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="freemask",
         description="Magic-Mask-style object tracking and matte export for DaVinci Resolve (free version).",
     )
-    p.add_argument("input", help="Video file or folder containing an image sequence")
+    p.add_argument("input", nargs="?", help="Video file or image-sequence folder (optional: you can open one in the app)")
     p.add_argument("-o", "--out", help="Output folder (default: <input name>_freemask next to the input)")
     p.add_argument("--name", help="Base name for exported files (default: input name)")
 
@@ -72,98 +72,95 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--invert", action="store_true", default=None, help="Invert the matte")
 
     g = p.add_argument_group("output")
-    g.add_argument("--format", default="png",
+    g.add_argument("--format", default=None,
                    help="Comma list of: png (16-bit matte sequence), cutout (RGBA PNGs), video (matte .mov). "
-                        "Default: png")
-    g.add_argument("--keep-frames", action="store_true", help="Keep the extracted working frames")
+                        "Default: all three in the app, png in headless mode")
+
+    g = p.add_argument_group("app")
+    g.add_argument("--frame", type=int, default=None, help="Source frame to show first")
+    g.add_argument("--port", type=int, default=0, help="Port for the local UI server (default: any free port)")
+    g.add_argument("--no-window", action="store_true", help="Don't open a browser window (print the URL)")
+    g.add_argument("--done-file", help=argparse.SUPPRESS)  # written on exit for the Resolve script
+    g.add_argument("--log", help=argparse.SUPPRESS)  # handled in __main__
     return p
+
+
+def _engine_factory(frames_dir, model, device):
+    if os.environ.get("FREEMASK_ENGINE"):
+        from .session import default_engine_factory
+
+        return default_engine_factory(frames_dir, model, device)
+    return tracker.Sam2Engine(frames_dir, model, device)
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    src = Path(args.input)
-    if not src.exists():
-        raise SystemExit(f"Input not found: {src}")
-    name = args.name or default_name(str(src))
-    out_dir = Path(args.out) if args.out else src.parent / f"{name}_freemask"
-    formats = {f.strip() for f in args.format.split(",") if f.strip()}
+    fmt = args.format or ("png" if args.headless else "png,video,cutout")
+    formats = {f.strip() for f in fmt.split(",") if f.strip()}
     bad = formats - {"png", "cutout", "video"}
-    if bad:
-        raise SystemExit(f"Unknown format(s): {', '.join(sorted(bad))}")
+    if bad or not formats:
+        raise SystemExit(f"Unknown format(s): {', '.join(sorted(bad)) or '(none)'}")
 
-    session = {}
-    if args.session:
-        session = json.loads(Path(args.session).read_text())
-    settings = RefineSettings.from_dict(session.get("refine", {}))
+    session = Session(model=args.model, device=args.device, quality=args.quality,
+                      engine_factory=_engine_factory, formats=formats)
     for key in RefineSettings.__dataclass_fields__:
         val = getattr(args, key, None)
         if val is not None:
-            setattr(settings, key, val)
+            setattr(session.settings, key, val)
 
-    work = tempfile.mkdtemp(prefix="freemask_")
-    frames_dir = str(Path(work) / "frames")
-    try:
-        print(f"Reading {src} ...")
-        info = extract_frames(
-            str(src), frames_dir, max_side=args.quality, start=args.start, end=args.end,
-            fps_override=args.fps,
-            progress=lambda n: print(f"\r  extracted {n} frames", end="", flush=True),
-        )
-        print(f"\n  {info.frame_count} frames, {info.width}x{info.height} @ {info.fps:.3f} fps "
-              f"(tracking at {info.proc_width}x{info.proc_height})")
-        to_proc = info.proc_width / info.width
+    if args.headless:
+        return _run_headless(session, args, formats)
 
-        prompts = PromptSet.from_json(session, to_proc, info.first_frame) if session else PromptSet()
-        _add_cli_prompts(prompts, args, to_proc, info)
+    from .server import App
 
-        print(f"Loading SAM 2.1 '{args.model}' model (first run downloads it) ...")
-        from .tracker import Sam2Engine
+    if args.input:
+        src = Path(args.input)
+        if not src.exists():
+            raise SystemExit(f"Input not found: {src}")
+        session.open_clip(str(src), args.start, args.end, args.fps, args.out, args.name,
+                          frame=args.frame, session_file=args.session)
+    App(session, done_file=args.done_file).serve(port=args.port, open_window=not args.no_window)
 
-        engine = Sam2Engine(frames_dir, args.model, args.device)
-        print(f"  running on {engine.device}")
 
-        def save_session(editor) -> Path:
-            out_dir.mkdir(parents=True, exist_ok=True)
-            path = out_dir / f"{name}_session.json"
-            data = editor.prompts.to_json(1 / to_proc, info.first_frame)
-            data["refine"] = editor.settings.to_dict()
-            data["source"] = str(src)
-            path.write_text(json.dumps(data, indent=2))
-            return path
+def _run_headless(session: Session, args, formats):
+    if not args.input:
+        raise SystemExit("Headless mode needs an input clip.")
+    src = Path(args.input)
+    if not src.exists():
+        raise SystemExit(f"Input not found: {src}")
+    cli_settings = session.settings.to_dict()
+    print(f"Reading {src} and loading SAM 2.1 '{args.model}' (first run downloads it) ...")
+    job = session.open_clip(str(src), args.start, args.end, args.fps, args.out, args.name,
+                            session_file=args.session, wait=True)
+    if job.error:
+        raise SystemExit(f"Error: {job.error}")
+    info = session.info
+    print(f"  {info.frame_count} frames, {info.width}x{info.height} @ {info.fps:.3f} fps "
+          f"(tracking at {info.proc_width}x{info.proc_height}) on {session.engine.device}")
+    # Flags given on the command line win over the session file.
+    defaults = RefineSettings().to_dict()
+    for k, v in cli_settings.items():
+        if v != defaults[k]:
+            setattr(session.settings, k, v)
 
-        def export(store_owner) -> dict:
-            from .export import export_mattes
+    to_proc = info.proc_width / info.width
+    _add_cli_prompts(session.prompts, args, to_proc, info)
+    if not session.prompts.frames():
+        raise SystemExit("Headless mode needs at least one --point, --box or a --session file.")
+    apply_prompts(session.engine, session.prompts, session.store)
 
-            t0 = time.time()
-            paths = export_mattes(
-                info, store_owner.store, store_owner.settings, str(out_dir), name, formats,
-                progress=lambda i, n: print(f"\r  exporting {i}/{n}", end="", flush=True),
-            )
-            print(f"\n  done in {time.time() - t0:.1f}s")
-            return paths
-
-        if args.headless:
-            _run_headless(engine, prompts, settings, info, args.direction, export)
-        else:
-            try:
-                from .gui import Editor
-            except ImportError as exc:  # pragma: no cover
-                raise SystemExit(f"Could not start the editor: {exc}")
-            editor = Editor(info, frames_dir, engine, prompts, settings, save_session, export)
-            try:
-                editor.run()
-            except Exception as exc:  # the headless OpenCV build has no GUI support
-                if "is not implemented" in str(exc) or "highgui" in str(exc).lower():
-                    raise SystemExit(
-                        "OpenCV was installed without window support. Run:\n"
-                        "  pip uninstall -y opencv-python-headless && pip install opencv-python"
-                    )
-                raise
-    finally:
-        if args.keep_frames:
-            print(f"Working frames kept in {frames_dir}")
-        else:
-            safe_remove(work)
+    t0 = time.time()
+    job = session.track(args.direction, wait=True)
+    if job.error:
+        raise SystemExit(f"Tracking failed: {job.error}")
+    print(f"  tracked {session.store.tracked_count()} frames in {time.time() - t0:.1f}s")
+    job = session.export(formats, wait=True)
+    if job.error:
+        raise SystemExit(f"Export failed: {job.error}")
+    for kind, path in job.result.items():
+        print(f"  {kind:7s} -> {path}")
+    session.close()
+    return job.result
 
 
 def _add_cli_prompts(prompts: PromptSet, args, to_proc: float, info):
@@ -182,27 +179,6 @@ def _add_cli_prompts(prompts: PromptSet, args, to_proc: float, info):
     for spec in args.box:
         f, vals, obj = _parse_xy(spec, 4, "box")
         prompts.get(frame_of(f), obj).box = [v * to_proc for v in vals]
-
-
-def _run_headless(engine, prompts, settings, info, direction, export):
-    if not prompts.frames():
-        raise SystemExit("Headless mode needs at least one --point, --box or a --session file.")
-
-    class Owner:
-        pass
-
-    owner = Owner()
-    owner.settings = settings
-    owner.store = MaskStore(info.frame_count, info.proc_height, info.proc_width)
-    apply_prompts(engine, prompts, owner.store)
-
-    t0 = time.time()
-    track(engine, prompts, owner.store, direction,
-          progress=lambda f, n, _: print(f"\r  tracked {n} frames", end="", flush=True))
-    print(f"\n  tracking took {time.time() - t0:.1f}s")
-    paths = export(owner)
-    for kind, path in paths.items():
-        print(f"  {kind:7s} -> {path}")
 
 
 if __name__ == "__main__":
