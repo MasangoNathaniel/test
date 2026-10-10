@@ -22,6 +22,7 @@ from fakes import ball_center, make_clip
 lupa = pytest.importorskip("lupa")
 
 ROOT = Path(__file__).resolve().parent.parent
+IS_WIN = os.name == "nt"
 LUA = (ROOT / "resolve" / "FreeMask.lua").read_text()
 
 MOCK_RESOLVE = r"""
@@ -125,13 +126,21 @@ def run_lua(home, clip_path, *, launcher=None, left=0, duration=12, playhead="01
 
 @pytest.fixture
 def home(tmp_path):
-    """A FreeMask install folder whose .venv/bin/python is this test's Python."""
+    """A FreeMask install folder whose .venv Python is this test's Python (with its packages)."""
     h = tmp_path / "FreeMask"
-    (h / ".venv" / "bin").mkdir(parents=True)
-    (h / "freemask").symlink_to(ROOT / "freemask")
-    py = h / ".venv" / "bin" / "python"
-    py.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
-    py.chmod(py.stat().st_mode | stat.S_IEXEC)
+    if IS_WIN:
+        # Resolve runs .venv\Scripts\pythonw.exe; make a real venv that sees our packages.
+        import site
+        import venv
+
+        venv.create(h / ".venv", with_pip=False)
+        pth = h / ".venv" / "Lib" / "site-packages" / "_freemask_test.pth"
+        pth.write_text("\n".join(site.getsitepackages() + [str(ROOT)]) + "\n")
+    else:
+        (h / ".venv" / "bin").mkdir(parents=True)
+        py = h / ".venv" / "bin" / "python"
+        py.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+        py.chmod(py.stat().st_mode | stat.S_IEXEC)
     return h
 
 
@@ -143,11 +152,11 @@ def clip(tmp_path):
 
 
 def parse_cmd(cmd):
-    """Turn the shell command the script built back into its arguments."""
+    """Turn the shell command the script built back into its arguments (POSIX or Windows form)."""
     import shlex
 
-    parts = shlex.split(cmd.split("&&", 1)[1].replace("nohup", "", 1).split(" > /dev/null", 1)[0])
-    args = parts[parts.index("freemask") + 1:]
+    tail = cmd.split(" -m freemask ", 1)[1].split(" > /dev/null", 1)[0]
+    args = shlex.split(tail)
     out = {"source": args[0]}
     it = iter(args[1:])
     for k in it:
@@ -188,7 +197,10 @@ def test_command_and_import(home, clip):
     assert a["frame"] == "8"
     assert a["name"] == "A001_C002_3-14"
     assert a["out"] == str(clip.parent / "A001_C002_freemask")
-    assert seen["cmd"].startswith("cd '") and seen["cmd"].rstrip().endswith("&")
+    if IS_WIN:
+        assert seen["cmd"].startswith('start "FreeMask" /D ') and "pythonw.exe" in seen["cmd"]
+    else:
+        assert seen["cmd"].startswith("cd '") and seen["cmd"].rstrip().endswith("&")
 
     assert r["ok"] is True, r["printed"]
     assert r["folders"] == ["FreeMask"]
@@ -260,7 +272,7 @@ def test_end_to_end(home, clip, monkeypatch):
     """Resolve script -> real FreeMask process -> user actions over HTTP -> import back."""
     monkeypatch.setenv("FREEMASK_ENGINE", "fakes:FakeEngine")
     monkeypatch.setenv("FREEMASK_NO_BROWSER", "1")
-    monkeypatch.setenv("PYTHONPATH", str(Path(__file__).parent))
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(Path(__file__).parent), str(ROOT)]))
 
     result = {}
     t = threading.Thread(target=lambda: result.update(run_lua(home, clip, left=2, duration=10, playhead="01:00:04:03")))

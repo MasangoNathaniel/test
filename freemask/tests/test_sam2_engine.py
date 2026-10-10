@@ -68,3 +68,33 @@ def test_session_with_real_sam2(tmp_path):
     assert len(list((tmp_path / "out" / "shot_matte").glob("*.png"))) == 6
     assert np.frombuffer(s.overlay_png(0), np.uint8).size > 0
     s.close()
+
+
+def test_real_weights_track_the_subject(tmp_path, monkeypatch):
+    """With the real downloaded model, the matte must actually follow the subject."""
+    monkeypatch.undo()  # no random-weight fallback here
+    try:
+        from sam2.build_sam import _hf_download
+
+        _hf_download("facebook/sam2.1-hiera-tiny")
+    except Exception as exc:
+        pytest.skip(f"model weights not downloadable here: {exc}")
+
+    import cv2
+
+    from fakes import H, W
+
+    n = 10
+    clip = make_clip(tmp_path / "shot.mp4", n=n)
+    s = Session(model="tiny", device="cpu", engine_factory=lambda d, m, dev: tracker.Sam2Engine(d, m, dev))
+    assert s.open_clip(str(clip), wait=True).error is None
+    mid = n // 2
+    s.add_point(mid, 1, *ball_center(mid), 1)
+    assert s.track("both", wait=True).error is None
+    for i in range(n):
+        truth = np.zeros((H, W), np.uint8)
+        cv2.circle(truth, ball_center(i), 25, 1, -1)
+        m = s.store.get_obj(i, 1)
+        iou = (m & truth.astype(bool)).sum() / max(1, (m | truth.astype(bool)).sum())
+        assert iou > 0.85, f"frame {i}: IoU {iou:.2f}"
+    s.close()

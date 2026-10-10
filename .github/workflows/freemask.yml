@@ -1,0 +1,80 @@
+name: FreeMask
+
+on:
+  push:
+    paths: ["freemask/**", ".github/workflows/freemask.yml"]
+  pull_request:
+    paths: ["freemask/**", ".github/workflows/freemask.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: freemask
+
+jobs:
+  tests:
+    name: Tests · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PyTorch (CPU)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          else
+            pip install torch torchvision
+          fi
+      - name: Install FreeMask dependencies
+        shell: bash
+        run: |
+          SAM2_BUILD_CUDA=0 pip install --no-build-isolation "sam2>=1.1.0"
+          pip install "huggingface_hub>=0.23" "numpy>=1.24" "opencv-python-headless>=4.8" "imageio-ffmpeg>=0.5"
+          pip install pytest playwright lupa pyflakes
+          python -m playwright install --with-deps chromium
+      - name: Lint
+        run: python -m pyflakes freemask tests
+      - name: Test suite
+        run: python -m pytest tests -v -rs
+
+  installer:
+    name: Installer · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run install_mac_linux.sh
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash install_mac_linux.sh
+      - name: Run install_windows.bat
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call install_windows.bat < NUL
+      - name: Smoke test with the installed environment (real model)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python.exe; else PY=.venv/bin/python; fi
+          "$PY" tests/ci_smoke.py
+      - name: Launcher scripts work
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then cmd //c "freemask.bat --help < NUL"; else ./freemask.sh --help; fi
+      - name: Apple GPU (MPS) attempt
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: .venv/bin/python tests/ci_smoke.py --device mps --skip-resolve-check
