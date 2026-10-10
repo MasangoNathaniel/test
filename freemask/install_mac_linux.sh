@@ -25,6 +25,16 @@ if [ -z "$PY" ]; then
 fi
 say "Using $("$PY" --version) ($PY)"
 
+# PyTorch no longer ships builds for Intel Macs (2.3+), and SAM 2 needs PyTorch 2.5+.
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ] \
+   && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)" != "1" ]; then
+  echo
+  echo "This is an Intel Mac. The AI model FreeMask uses (SAM 2) needs PyTorch 2.5 or newer,"
+  echo "which isn't available for Intel Macs. FreeMask needs an Apple Silicon Mac (M1 or newer),"
+  echo "a Windows PC, or a Linux PC."
+  exit 1
+fi
+
 # 2. Private environment so nothing touches your system Python.
 say "Creating the FreeMask environment"
 "$PY" -m venv .venv

@@ -28,6 +28,9 @@ products, skies, and almost anything else you can click on.
 
 ## 1. Install (one time)
 
+Runs on **Windows 10/11**, **macOS on Apple Silicon (M1 or newer)** and **Linux**. Intel
+Macs aren't supported, because the PyTorch version SAM 2 needs isn't built for them.
+
 You need **Python 3.10 or newer**.
 * **Mac:** install it from [python.org](https://www.python.org/downloads/). The `python3`
   that comes with macOS is usually too old.
