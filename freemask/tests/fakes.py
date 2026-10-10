@@ -5,6 +5,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from freemask.video_io import imread
+
 W, H, N = 320, 180, 12
 
 
@@ -23,7 +25,14 @@ def make_clip(path, n=None, size=(W, H), pretty=False):
     n = n or N
     w, h = size
     sx, sy = w / W, h / H
-    vw = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 25, (w, h))
+    # Write to an ASCII temp name, then move: cv2.VideoWriter can't take non-ASCII paths on Windows.
+    import os
+    import shutil
+    import tempfile
+
+    fd, tmp = tempfile.mkstemp(suffix=".mp4")
+    os.close(fd)
+    vw = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*"mp4v"), 25, (w, h))
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     bg = np.full((h, w, 3), 30, np.uint8)
     if pretty:
@@ -41,6 +50,7 @@ def make_clip(path, n=None, size=(W, H), pretty=False):
         cv2.circle(img, (int(x * sx), int(y * sy)), int(25 * sx), (225, 232, 240), -1, cv2.LINE_AA)
         vw.write(img)
     vw.release()
+    shutil.move(tmp, str(path))
     return path
 
 
@@ -55,7 +65,7 @@ class FakeEngine:
         self.cond = {}  # frame -> {obj: mask}
 
     def _blob(self, frame, x, y):
-        g = cv2.imread(str(self.dir / f"{frame:05d}.jpg"), cv2.IMREAD_GRAYSCALE)
+        g = imread(self.dir / f"{frame:05d}.jpg", cv2.IMREAD_GRAYSCALE)  # non-ASCII-safe
         _, labels = cv2.connectedComponents((g > 128).astype(np.uint8))
         h, w = g.shape
         lab = labels[int(np.clip(y, 0, h - 1)), int(np.clip(x, 0, w - 1))]
