@@ -19,7 +19,7 @@ import numpy as np
 
 from .refine import RefineSettings, auto_refine_radius, finish_matte, temporal_soft_mask
 from .tracker import MODELS, MaskStore, PromptSet, apply_prompts, track
-from .video_io import default_name, extract_frames, probe, safe_remove
+from .video_io import default_name, extract_frames, imread, probe, safe_remove
 
 # Object colours (RGB) — shared with the UI.
 OBJECT_COLORS = [
@@ -444,7 +444,7 @@ class Session:
         soft = temporal_soft_mask(self.store.combined, i, self.info.frame_count, s)
         if soft is None:
             soft = np.zeros((self.info.proc_height, self.info.proc_width), np.float32)
-        guide = cv2.imread(str(self.frame_path(i)))
+        guide = imread(self.frame_path(i))
         matte = finish_matte(soft, s, (self.info.proc_width, self.info.proc_height), guide)
         a = np.round(matte * 255).astype(np.uint8)
         white = np.full_like(a, 255)

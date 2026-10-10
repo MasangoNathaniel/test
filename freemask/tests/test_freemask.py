@@ -179,3 +179,59 @@ def test_cli_session_file(clip, tmp_path, monkeypatch):
     cli.main([str(clip), "--headless", "--session", str(sp), "-o", str(out)])
     m = cv2.imread(str(out / "shot_matte" / "shot_matte_000004.png"), cv2.IMREAD_UNCHANGED)
     assert m[y, x] < 1000 and m[10, 10] > 60000  # inverted
+
+
+def test_non_ascii_paths_end_to_end(tmp_path):
+    """Windows' OpenCV can't open non-ASCII paths directly; FreeMask must cope."""
+    folder = tmp_path / "Clips Ünïcødé 映像"
+    folder.mkdir()
+    clip = make_clip(folder / "José — take 1.mp4", n=6)
+    info = extract_frames(str(clip), str(folder / "wörk"), max_side=320)
+    eng = FakeEngine(folder / "wörk")
+    prompts = PromptSet()
+    p = prompts.get(2, 1)
+    p.points, p.labels = [list(ball_center(2))], [1]
+    store = MaskStore(info.frame_count, info.proc_height, info.proc_width)
+    apply_prompts(eng, prompts, store)
+    track(eng, prompts, store, "both")
+    paths = export_mattes(info, store, RefineSettings(), str(folder / "öut"), "josé", {"png", "cutout", "video"})
+    assert len(list(paths["png"].glob("*.png"))) == 6 and paths["video"].stat().st_size > 0
+    from freemask.video_io import imread
+
+    m = imread(paths["png"] / "josé_matte_000002.png", cv2.IMREAD_UNCHANGED)
+    x, y = ball_center(2)
+    assert m[y, x] > 60000
+
+
+def test_ffmpeg_fallback_when_opencv_cannot_open(clip, tmp_path, monkeypatch):
+    from freemask import video_io
+
+    monkeypatch.setattr(video_io, "_open_capture", lambda path: None)
+    fps, w, h, n = video_io.probe(str(clip))
+    assert (w, h) == (W, H) and abs(fps - 25) < 0.01 and abs(n - N) <= 1
+    info = extract_frames(str(clip), str(tmp_path / "f"), start=3, end=8)
+    assert info.frame_count == 6
+    g = cv2.imread(str(tmp_path / "f" / "00000.jpg"), cv2.IMREAD_GRAYSCALE)
+    x, y = ball_center(3)
+    assert g[y, x] > 180  # really frame 3: the ball is where frame 3 has it
+
+
+def test_exr_image_sequence(tmp_path):
+    """EXR plates (common out of Resolve/VFX) decode even when OpenCV lacks EXR support."""
+    import subprocess
+
+    from freemask.video_io import find_ffmpeg
+
+    seq = tmp_path / "plate"
+    seq.mkdir()
+    for i in range(4):
+        img = np.zeros((90, 160, 3), np.uint8)
+        cv2.circle(img, (30 + i * 20, 45), 12, (230, 230, 230), -1)
+        png = tmp_path / f"src{i}.png"
+        cv2.imwrite(str(png), img)
+        subprocess.run([find_ffmpeg(), "-loglevel", "error", "-y", "-i", str(png), "-c:v", "exr",
+                        str(seq / f"plate.{1001 + i}.exr")], check=True)
+    info = extract_frames(str(seq), str(tmp_path / "f"), fps_override=24)
+    assert (info.width, info.height, info.frame_count, info.fps) == (160, 90, 4, 24)
+    g = cv2.imread(str(tmp_path / "f" / "00002.jpg"), cv2.IMREAD_GRAYSCALE)
+    assert g[45, 70] > 150 and g[5, 5] < 20

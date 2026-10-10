@@ -41,21 +41,91 @@ def _proc_size(width: int, height: int, max_side: int) -> tuple[int, int]:
     return max(2, int(round(width * scale / 2)) * 2), max(2, int(round(height * scale / 2)) * 2)
 
 
+def imread(path, flags=cv2.IMREAD_COLOR):
+    """cv2.imread that also works with non-ASCII paths on Windows, and falls back to
+    ffmpeg for formats this OpenCV build can't decode (EXR, some DPX/TIFF)."""
+    try:
+        data = np.fromfile(str(path), dtype=np.uint8)
+    except OSError:
+        return None
+    img = cv2.imdecode(data, flags) if data.size else None
+    if img is None and data.size:
+        img = _ffmpeg_image(path)
+    return img
+
+
+def _ffmpeg_image(path):
+    meta, gen = _ffmpeg_reader(Path(path))
+    if gen is None:
+        return None
+    try:
+        raw = next(gen, None)
+    finally:
+        gen.close()
+    if raw is None:
+        return None
+    w, h = meta["size"]
+    return np.frombuffer(raw, np.uint8).reshape(h, w, 3).copy()
+
+
+def imwrite(path, img, params=()):
+    """cv2.imwrite that also works with non-ASCII paths on Windows."""
+    ok, buf = cv2.imencode(Path(path).suffix, img, list(params))
+    if not ok:
+        raise IOError(f"Could not encode {path}")
+    buf.tofile(str(path))
+
+
+def _open_capture(path: Path):
+    cap = cv2.VideoCapture(str(path))
+    if cap.isOpened():
+        return cap
+    cap.release()
+    return None
+
+
+def _ffmpeg_reader(path: Path):
+    """Fallback decoder (bundled ffmpeg): handles paths/codecs OpenCV can't. Returns (meta, frames)."""
+    try:
+        import imageio_ffmpeg
+    except ImportError:
+        return None, None
+    try:
+        gen = imageio_ffmpeg.read_frames(str(path), pix_fmt="bgr24")
+        meta = next(gen)
+    except Exception:
+        return None, None
+    return meta, gen
+
+
 def iter_source_frames(source: str, start: int = 0, end: int | None = None):
     """Yield full-resolution BGR uint8 frames from a video file or image-sequence folder."""
     path = Path(source)
     if path.is_dir():
         files = _sequence_files(path)[start : None if end is None else end + 1]
         for f in files:
-            img = cv2.imread(str(f), cv2.IMREAD_UNCHANGED)
+            img = imread(f, cv2.IMREAD_UNCHANGED)
             if img is None:
                 raise IOError(f"Could not read {f}")
             yield _to_bgr8(img)
         return
 
-    cap = cv2.VideoCapture(str(path))
-    if not cap.isOpened():
-        raise IOError(f"Could not open video {source}")
+    cap = _open_capture(path)
+    if cap is None:
+        meta, gen = _ffmpeg_reader(path)
+        if gen is None:
+            raise IOError(f"Could not open video {source}")
+        w, h = meta["size"]
+        try:
+            for idx, raw in enumerate(gen):
+                if idx < start:
+                    continue
+                if end is not None and idx > end:
+                    break
+                yield np.frombuffer(raw, np.uint8).reshape(h, w, 3)
+        finally:
+            gen.close()
+        return
     try:
         if start:
             cap.set(cv2.CAP_PROP_POS_FRAMES, start)
@@ -89,11 +159,20 @@ def probe(source: str, fps_override: float | None = None) -> tuple[float, int, i
     path = Path(source)
     if path.is_dir():
         files = _sequence_files(path)
-        h, w = _to_bgr8(cv2.imread(str(files[0]), cv2.IMREAD_UNCHANGED)).shape[:2]
+        first = imread(files[0], cv2.IMREAD_UNCHANGED)
+        if first is None:
+            raise IOError(f"Could not read {files[0]}")
+        h, w = _to_bgr8(first).shape[:2]
         return fps_override or 24.0, w, h, len(files)
-    cap = cv2.VideoCapture(str(path))
-    if not cap.isOpened():
-        raise IOError(f"Could not open video {source}")
+    cap = _open_capture(path)
+    if cap is None:
+        meta, gen = _ffmpeg_reader(path)
+        if gen is None:
+            raise IOError(f"Could not open video {source}")
+        gen.close()
+        fps = float(meta.get("fps") or 24.0)
+        w, h = meta["size"]
+        return fps_override or fps, w, h, int(round(float(meta.get("duration") or 0) * fps))
     fps = cap.get(cv2.CAP_PROP_FPS) or 24.0
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -123,7 +202,7 @@ def extract_frames(
     for frame in iter_source_frames(source, start, end):
         if (frame.shape[1], frame.shape[0]) != (pw, ph):
             frame = cv2.resize(frame, (pw, ph), interpolation=cv2.INTER_AREA)
-        cv2.imwrite(str(out / f"{count:05d}.jpg"), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        imwrite(out / f"{count:05d}.jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
         count += 1
         if progress:
             progress(count)
@@ -188,13 +267,13 @@ class MatteWriter:
         frame_no = self.info.first_frame + self.index
         if "png" in self.paths:
             m16 = np.round(np.clip(matte, 0, 1) * 65535).astype(np.uint16)
-            cv2.imwrite(str(self.paths["png"] / f"{self.name}_matte_{frame_no:06d}.png"), m16)
+            imwrite(self.paths["png"] / f"{self.name}_matte_{frame_no:06d}.png", m16)
         if "cutout" in self.paths:
             if frame_bgr is None:
                 raise ValueError("cutout output needs the source frame")
             alpha = np.round(np.clip(matte, 0, 1) * 255).astype(np.uint8)
             rgba = np.dstack([frame_bgr, alpha])
-            cv2.imwrite(str(self.paths["cutout"] / f"{self.name}_cutout_{frame_no:06d}.png"), rgba)
+            imwrite(self.paths["cutout"] / f"{self.name}_cutout_{frame_no:06d}.png", rgba)
         m8 = None
         if self._ffmpeg or self._cv_writer:
             m8 = np.round(np.clip(matte, 0, 1) * 255).astype(np.uint8)
