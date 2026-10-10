@@ -1,0 +1,9 @@
+# Install with the install script for your OS (it picks the right PyTorch build).
+# Manual install order: torch/torchvision first, then:
+#   SAM2_BUILD_CUDA=0 pip install --no-build-isolation sam2
+torch>=2.5.1
+torchvision>=0.20.1
+sam2>=1.1.0
+huggingface_hub>=0.23
+numpy>=1.24
+opencv-python>=4.8
