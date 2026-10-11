@@ -1,6 +1,6 @@
 # Sofwire ad v2: edit package (9:16, 1080×1920, 30fps, 19.83s)
 
-Re-timed to the client's new voiceover (v2), now with background noise removed (`voiceover_clean.wav`). Every on-screen word and sound effect is locked to ElevenLabs word timestamps (`assets/voiceover_v2_words.json`), not estimated.
+Re-timed to the client's new voiceover (v2), now with wind and background noise removed (`voiceover_clean.wav`). Every on-screen word and sound effect is locked to ElevenLabs word timestamps (`assets/voiceover_v2_words.json`), not estimated.
 
 ## Files
 | File | What |
@@ -9,8 +9,9 @@ Re-timed to the client's new voiceover (v2), now with background noise removed (
 | `sofwire_graphics_master_h264.mp4` | **Graphics master for Resolve.** Grain-free, near-lossless (SSIM 0.9994), no audio. Add film grain in Resolve if you want the textured look |
 | `sofwire_graphics_prores.mov` | ProRes 422 HQ master with grain baked in (489 MB, kept in the repo folder only) |
 | `shots/S1…S6.mov` | The master split at each cut |
-| `voiceover_clean.wav` | Client voiceover v2, **background noise removed** (room rumble/hum cut by ~15 dB). Use this one |
-| `audio/voiceover_clean_gentle.wav` | Lighter noise reduction (~9 dB), if the main one sounds too processed |
+| `voiceover_clean.wav` | **Use this one.** Client voiceover v2 with wind and background noise removed: ElevenLabs Voice Isolator, then a 90 Hz high-pass and a wind-gust suppressor (`build/dewind.py`) |
+| `audio/voiceover_clean_spectral.wav` | Earlier version: steady-noise reduction only (wind still audible) |
+| `audio/voiceover_clean_gentle.wav` | Earlier version: lighter steady-noise reduction |
 | `audio/voiceover_original_noisy.m4a` | The original recording, untouched |
 | `audio/sofwire_music_sfx_bed.wav` | Music + sound effects, already ducked under the voiceover. Put it on A2 at 0:00 |
 | `audio/music_unducked.wav` | Music stem, not ducked |
