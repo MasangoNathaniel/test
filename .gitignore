@@ -1,3 +1,4 @@
 out/*.mov
 out/shots/
 __pycache__/
+*.zip
