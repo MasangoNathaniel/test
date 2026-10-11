@@ -1,6 +1,6 @@
 # Sofwire ad v2: edit package (9:16, 1080×1920, 30fps, 19.83s)
 
-Re-timed to the client's new voiceover (`voiceover.m4a`, v2). Every on-screen word and sound effect is locked to ElevenLabs word timestamps (`assets/voiceover_v2_words.json`), not estimated.
+Re-timed to the client's new voiceover (v2), now with background noise removed (`voiceover_clean.wav`). Every on-screen word and sound effect is locked to ElevenLabs word timestamps (`assets/voiceover_v2_words.json`), not estimated.
 
 ## Files
 | File | What |
@@ -9,7 +9,9 @@ Re-timed to the client's new voiceover (`voiceover.m4a`, v2). Every on-screen wo
 | `sofwire_graphics_master_h264.mp4` | **Graphics master for Resolve.** Grain-free, near-lossless (SSIM 0.9994), no audio. Add film grain in Resolve if you want the textured look |
 | `sofwire_graphics_prores.mov` | ProRes 422 HQ master with grain baked in (489 MB, kept in the repo folder only) |
 | `shots/S1…S6.mov` | The master split at each cut |
-| `voiceover.m4a` | Client voiceover v2 |
+| `voiceover_clean.wav` | Client voiceover v2, **background noise removed** (room rumble/hum cut by ~15 dB). Use this one |
+| `audio/voiceover_clean_gentle.wav` | Lighter noise reduction (~9 dB), if the main one sounds too processed |
+| `audio/voiceover_original_noisy.m4a` | The original recording, untouched |
 | `audio/sofwire_music_sfx_bed.wav` | Music + sound effects, already ducked under the voiceover. Put it on A2 at 0:00 |
 | `audio/music_unducked.wav` | Music stem, not ducked |
 | `audio/sfx_unducked.wav` | All sound effects on one track, each placed on its cue |
@@ -67,5 +69,5 @@ If the XML gives trouble: drop S1–S6 on V1 in order, the voiceover on A1 and t
 - Copy now follows the read: "FREE **BUSINESS** CONSULTANCY MEETING", and the first checklist item now reads "where your brand is lacking".
 - Music re-arranged: a 3-bar intro, the drop at 6.80s, the tape-stop at 15.24s, the logo bloom at 17.05s.
 
-Re-render: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov` · `python3 build/sound.py <vo 48k wav> out/audio` · `python3 build/export_oneshots.py out/audio/sfx_oneshots`
+Re-render: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov` · `python3 build/sound.py <vo 48k wav> out/audio` · `python3 build/export_oneshots.py out/audio/sfx_oneshots` · `python3 build/denoise.py <vo 48k wav> out/voiceover_clean.wav 26`
 (v1 versions kept as `build/render_v1_23s.py`, `build/sound_v1_23s.py`)

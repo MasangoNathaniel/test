@@ -9,7 +9,7 @@
     <asset id="r5" name="S4_action_plan" start="0s" duration="116/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S4_action_plan.mov"/></asset>
     <asset id="r6" name="S5_dont_waste" start="0s" duration="54/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S5_dont_waste.mov"/></asset>
     <asset id="r7" name="S6_logo_cta" start="0s" duration="83/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S6_logo_cta.mov"/></asset>
-    <asset id="rvo" name="voiceover" start="0s" duration="595/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/voiceover.m4a"/></asset>
+    <asset id="rvo" name="voiceover_clean" start="0s" duration="595/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/voiceover_clean.wav"/></asset>
     <asset id="rbed" name="sofwire_music_sfx_bed" start="0s" duration="595/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/audio/sofwire_music_sfx_bed.wav"/></asset>
   </resources>
   <library>
