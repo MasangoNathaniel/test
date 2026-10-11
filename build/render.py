@@ -26,6 +26,7 @@ RED = (255, 66, 66)
 
 FONT_DIR = '/usr/share/fonts/opentype/inter/'
 LOGO_DIR = None
+NO_GRAIN = bool(os.environ.get('NO_GRAIN'))
 
 
 # ---------- helpers ----------
@@ -413,7 +414,7 @@ def render(fi, fps):
     c = fn(t)
     if fn is shot2 and t >= 6.26:
         ring_transition(c, t)
-    return finish(c, fi, grain=fn is not shot6)
+    return finish(c, fi, grain=(fn is not shot6) and not NO_GRAIN)
 
 def _work(args):
     return render(*args).tobytes()

@@ -6,7 +6,8 @@ Re-timed to the client's new voiceover (`voiceover.m4a`, v2). Every on-screen wo
 | File | What |
 |---|---|
 | `sofwire_ad_preview_with_sound.mp4` | Preview with everything: voiceover, music and sound effects, −14 LUFS / −1.2 dBTP |
-| `sofwire_graphics_prores.mov` | Full graphics master, ProRes 422 HQ, no audio |
+| `sofwire_graphics_master_h264.mp4` | **Graphics master for Resolve.** Grain-free, near-lossless (SSIM 0.9994), no audio. Add film grain in Resolve if you want the textured look |
+| `sofwire_graphics_prores.mov` | ProRes 422 HQ master with grain baked in (489 MB, kept in the repo folder only) |
 | `shots/S1…S6.mov` | The master split at each cut |
 | `voiceover.m4a` | Client voiceover v2 |
 | `audio/sofwire_music_sfx_bed.wav` | Music + sound effects, already ducked under the voiceover. Put it on A2 at 0:00 |
