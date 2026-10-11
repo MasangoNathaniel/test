@@ -159,12 +159,33 @@ def test_open_track_refine_export_finish(tmp_path, page):
         assert not (tmp_path / "walk_freemask" / "walk_cutout").exists()
         assert len(list((tmp_path / "walk_freemask" / "walk_matte").glob("*.png"))) == 20
 
+        # Play the Resolve script's part: read the hand-off, answer with a result.
+        import threading
+
+        def resolve_side():
+            for _ in range(200):
+                if done.exists():
+                    kv_seen.update(dict(line.split("=", 1) for line in done.read_text().splitlines()))
+                    done.unlink()
+                    (tmp_path / "out.done.result").write_text(
+                        "ok=1\nmessage=Added the cutout movie to your timeline on track V3.\nlog=/x/r.log\n")
+                    return
+                time.sleep(0.05)
+
+        kv_seen = {}
+        threading.Thread(target=resolve_side, daemon=True).start()
+        assert page.locator("#doneFinish").inner_text() == "Finish & send to Resolve"
         page.click("#doneFinish")
-        page.wait_for_selector("text=Sent to DaVinci Resolve")
+        page.wait_for_selector("#handoff.ok")
+        assert "track V3" in page.locator("#handoffMsg").inner_text()
+        assert page.locator("#doneFinish").inner_text() == "Close FreeMask"
+        page.click("#doneFinish")
+        page.wait_for_selector("text=Done — back to Resolve")
         srv.thread.join(10)
         assert not srv.thread.is_alive()
-        kv = dict(line.split("=", 1) for line in done.read_text().splitlines())
+        kv = kv_seen
         assert kv["first_frame"] == "2" and kv["frame_count"] == "20" and "cutout" not in kv
+        assert not done.exists()  # not re-written at shutdown after a hand-off
     finally:
         if srv.thread.is_alive():
             srv.stop()

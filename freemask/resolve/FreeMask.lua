@@ -19,8 +19,15 @@ local HEARTBEAT_TIMEOUT = FREEMASK_HEARTBEAT_TIMEOUT or 60 -- seconds without a 
 local SEP = package.config:sub(1, 1)
 local IS_WIN = SEP == "\\"
 
+local LOG_PATH = nil  -- set once we know the output folder
+
 local function log(msg)
-  print("[FreeMask] " .. tostring(msg))
+  local line = "[FreeMask] " .. tostring(msg)
+  print(line)
+  if LOG_PATH then
+    local f = io.open(LOG_PATH, "a")
+    if f then f:write(os.date("%H:%M:%S "), line, "\n"); f:close() end
+  end
 end
 
 local function join(...)
@@ -142,6 +149,7 @@ local function main()
   local out_dir = join(dirname(path), safe_name(basename(path)) .. "_freemask")
   local done_file = join(out_dir, "." .. name .. ".done")
   local log_file = join(out_dir, name .. "_freemask.log")
+  local resolve_log = join(out_dir, name .. "_resolve.log")
   local session = join(out_dir, name .. "_session.json")
 
   ------------------------------------------------------------------------------
@@ -166,6 +174,9 @@ local function main()
   end
   os.remove(done_file)
   os.remove(done_file .. ".alive")
+  os.remove(done_file .. ".result")
+  LOG_PATH = resolve_log
+  log("Resolve " .. tostring(res.GetVersionString and res:GetVersionString() or "?") .. ", clip " .. path)
 
   local args = {
     "-m", "freemask", q(source),
@@ -215,7 +226,7 @@ local function main()
     log("Details: " .. log_file)
     return false
   end
-  if not (result.png or result.cutout or result.video) then
+  if not (result.png or result.cutout or result.video or result.cutout_video) then
     log("Closed without exporting — nothing to import.")
     return true
   end
@@ -223,6 +234,17 @@ local function main()
   ------------------------------------------------------------------------------
   -- Bring the mattes into Resolve
   ------------------------------------------------------------------------------
+
+  -- Tell the FreeMask window how it went (it waits for this and shows it).
+  local function report(ok_flag, message)
+    log(message)
+    local f = io.open(done_file .. ".result", "w")
+    if f then
+      f:write("ok=", ok_flag and "1" or "0", "\n", "message=", message, "\n", "log=", LOG_PATH or "", "\n")
+      f:close()
+    end
+    return ok_flag
+  end
 
   local mp = project:GetMediaPool()
   local root = mp:GetRootFolder()
@@ -232,55 +254,119 @@ local function main()
   end
   bin = bin or mp:AddSubFolder(root, "FreeMask")
   if bin then mp:SetCurrentFolder(bin) end
+  log("Media Pool bin: " .. tostring(bin and bin:GetName()))
 
   local count = tonumber(result.frame_count) or duration
   local first_out = tonumber(result.first_frame) or first
   local rname = result.name or name
 
+  local function first_item(items)
+    if type(items) ~= "table" then return nil end
+    if items[1] then return items[1] end
+    for _, v in pairs(items) do return v end
+    return nil
+  end
+
+  local function import_file(path)
+    local ok_i, items = pcall(function() return mp:ImportMedia({ path }) end)
+    local it = ok_i and first_item(items)
+    if not it then
+      log("ImportMedia didn't return a clip for " .. path .. " (" .. tostring(items) .. "); trying Media Storage")
+      local ok2, items2 = pcall(function() return res:GetMediaStorage():AddItemListToMediaPool({ path }) end)
+      it = ok2 and first_item(items2)
+    end
+    log((it and "Imported " or "Could not import ") .. path)
+    return it
+  end
+
   local function import_sequence(dir, suffix)
-    local items = mp:ImportMedia({ {
-      FilePath = join(dir, rname .. "_" .. suffix .. "_%06d.png"),
-      StartIndex = first_out,
-      EndIndex = first_out + count - 1,
-    } })
-    return items and items[1]
+    local ok_i, items = pcall(function()
+      return mp:ImportMedia({ {
+        FilePath = join(dir, rname .. "_" .. suffix .. "_%06d.png"),
+        StartIndex = first_out,
+        EndIndex = first_out + count - 1,
+      } })
+    end)
+    local it = ok_i and first_item(items)
+    if not it then
+      local ok2, items2 = pcall(function() return res:GetMediaStorage():AddItemListToMediaPool({ dir }) end)
+      it = ok2 and first_item(items2)
+    end
+    log((it and "Imported sequence " or "Could not import sequence ") .. dir)
+    return it
   end
 
   local imported = {}
-  if result.png then imported.matte = import_sequence(result.png, "matte") end
-  if result.cutout then imported.cutout = import_sequence(result.cutout, "cutout") end
-  if result.video then
-    local items = mp:ImportMedia({ result.video })
-    imported.movie = items and items[1]
+  -- Movies first: single files import far more reliably than image sequences.
+  if result.cutout_video then imported.cutout_movie = import_file(result.cutout_video) end
+  if result.video then imported.matte_movie = import_file(result.video) end
+  if result.cutout then imported.cutout_seq = import_sequence(result.cutout, "cutout") end
+  if result.png then imported.matte_seq = import_sequence(result.png, "matte") end
+  if imported.cutout_movie then
+    pcall(function() imported.cutout_movie:SetClipProperty("Alpha mode", "Straight") end)
   end
+
   local n = 0
   for _ in pairs(imported) do n = n + 1 end
-  log("Imported " .. n .. " item(s) into the FreeMask bin.")
+  if n == 0 then
+    return report(false, "Resolve wouldn't import the exported files. They're in " .. out_dir
+      .. " — drag them into the Media Pool.")
+  end
 
-  -- Lay the cutout (or matte) on a new track directly above the clip.
-  local place = imported.cutout or imported.movie or imported.matte
-  if place then
-    local placed = pcall(function()
-      timeline:AddTrack("video")
-      local track = timeline:GetTrackCount("video")
-      pcall(function() timeline:SetTrackName("video", track, "FreeMask") end)
-      local r = mp:AppendToTimeline({ {
-        mediaPoolItem = place,
-        startFrame = 0,
-        endFrame = count - 1,
-        trackIndex = track,
-        recordFrame = item:GetStart(),
-        mediaType = 1,
-      } })
-      assert(r and #r > 0, "AppendToTimeline returned nothing")
-    end)
-    if placed then
-      log("Placed on a new track above your clip.")
-    else
-      log("Mattes are in the FreeMask bin (couldn't place on the timeline automatically).")
+  ------------------------------------------------------------------------------
+  -- Put the cutout (or matte) on a new track right above the clip
+  ------------------------------------------------------------------------------
+
+  local function track_count(t)
+    local ok_c, items = pcall(function() return timeline:GetItemListInTrack("video", t) end)
+    local c = 0
+    if ok_c and type(items) == "table" then for _ in pairs(items) do c = c + 1 end end
+    return c
+  end
+
+  local record = item:GetStart()
+  pcall(function() timeline:AddTrack("video") end)
+  local track = timeline:GetTrackCount("video")
+  pcall(function() timeline:SetTrackName("video", track, "FreeMask") end)
+  log("Placing on video track " .. tostring(track) .. " at timeline frame " .. tostring(record))
+
+  local candidates = {
+    { "cutout movie", imported.cutout_movie, 0 },
+    { "cutout sequence", imported.cutout_seq, first_out },
+    { "matte movie", imported.matte_movie, 0 },
+    { "matte sequence", imported.matte_seq, first_out },
+  }
+  local placed_what
+  for _, c in ipairs(candidates) do
+    local label, mpi_c, seq_start = c[1], c[2], c[3]
+    if mpi_c and not placed_what then
+      local attempts = {
+        { mediaPoolItem = mpi_c, startFrame = 0, endFrame = count - 1, trackIndex = track, recordFrame = record, mediaType = 1 },
+        { mediaPoolItem = mpi_c, startFrame = 0, endFrame = count - 1, trackIndex = track, recordFrame = record },
+        { mediaPoolItem = mpi_c, startFrame = seq_start, endFrame = seq_start + count - 1, trackIndex = track, recordFrame = record },
+        { mediaPoolItem = mpi_c, trackIndex = track, recordFrame = record },
+      }
+      for i, info in ipairs(attempts) do
+        local before = track_count(track)
+        local ok_a, r = pcall(function() return mp:AppendToTimeline({ info }) end)
+        local after = track_count(track)
+        log(string.format("  %s, attempt %d: call %s, returned %s, items on track %d -> %d",
+          label, i, ok_a and "ok" or ("failed: " .. tostring(r)), tostring(first_item(r)), before, after))
+        if after > before then
+          placed_what = label
+          break
+        end
+      end
     end
   end
-  return true
+
+  if placed_what then
+    return report(true, "Added the " .. placed_what .. " to your timeline on track V" .. track
+      .. ", right above your clip. Everything is also in the FreeMask bin.")
+  end
+  pcall(function() timeline:DeleteTrack("video", track) end)
+  return report(false, "Imported " .. n .. " item(s) into the FreeMask bin, but Resolve wouldn't place them "
+    .. "on the timeline automatically. Drag the cutout from the FreeMask bin onto the track above your clip.")
 end
 
 local ok, err = pcall(main)

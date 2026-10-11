@@ -550,12 +550,43 @@ $("#saveBtn").addEventListener("click", async () => {
 $("#errorBack").addEventListener("click", () => { ui.forceOpen = true; render(); });
 $("#doneKeep").addEventListener("click", () => ($("#doneModal").hidden = true));
 $("#doneFinish").addEventListener("click", async () => {
+  if (ui.handoffResult) return closeApp(ui.handoffResult.ok ? "Done — back to Resolve" : "FreeMask closed", "");
+  if (!ui.state?.from_resolve) return closeApp("Your mattes are saved", ui.state?.out_dir || "");
+  const btn = $("#doneFinish");
+  btn.disabled = true;
+  $("#doneKeep").disabled = true;
+  showHandoff({ status: "waiting" });
+  const r = await act("/api/finish", {});
+  if (!r) { btn.disabled = false; $("#doneKeep").disabled = false; $("#handoff").hidden = true; return; }
+  for (let i = 0; i < 1200; i++) {  // the server gives up after 2 minutes
+    const s = await api("/api/state").catch(() => null);
+    const h = s && s.handoff;
+    if (h && h.status !== "waiting") return showHandoff(h);
+    await new Promise((res) => setTimeout(res, 250));
+  }
+});
+function showHandoff(h) {
+  const box = $("#handoff");
+  box.hidden = false;
+  box.className = "handoff " + (h.status === "waiting" ? "wait" : h.ok ? "ok" : "warn");
+  $("#handoffMsg").textContent = h.status === "waiting" ? "Adding to your DaVinci Resolve timeline…" : h.message;
+  $("#handoffLog").textContent = h.log ? "Log: " + h.log : "";
+  if (h.status === "waiting") return;
+  const btn = $("#doneFinish");
+  btn.disabled = false;
+  btn.textContent = "Close FreeMask";
+  ui.handoffResult = h;
+  $("#doneKeep").hidden = true;
+}
+async function closeApp(title, sub) {
   await api("/api/quit", {}).catch(() => {});
   document.body.innerHTML = `<div style="height:100vh;display:grid;place-items:center;text-align:center;font:15px var(--font);color:#8c8a9e">
-    <div><img src="/assets/icon.svg" width="48" height="48" alt=""><p style="color:#ecebf3;font-size:18px;font-weight:600;margin:16px 0 6px">Sent to DaVinci Resolve</p>
-    <p>You can close this window.</p></div></div>`;
-  setTimeout(() => window.close(), 600);
-});
+    <div><img src="/assets/icon.svg" width="48" height="48" alt=""><p style="color:#ecebf3;font-size:18px;font-weight:600;margin:16px 0 6px"></p>
+    <p class="sub"></p><p>You can close this window.</p></div></div>`;
+  document.querySelector("p").textContent = title;
+  document.querySelector("p.sub").textContent = sub;
+  setTimeout(() => window.close(), 800);
+}
 $("#openForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   ui.forceOpen = false;
@@ -642,7 +673,8 @@ function applyState(s) {
 }
 
 function showDone(paths) {
-  const labels = { png: "Matte", video: "Movie", cutout: "Cutout" };
+  const labels = { png: "Matte", video: "Matte movie", cutout: "Cutout", cutout_video: "Cutout movie" };
+  $("#doneFinish").textContent = ui.state?.from_resolve ? "Finish & send to Resolve" : "Done";
   $("#donePaths").innerHTML = "";
   for (const [k, v] of Object.entries(paths)) {
     const li = document.createElement("li");

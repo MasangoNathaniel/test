@@ -248,3 +248,26 @@ def test_offline_model_download_message(tmp_path):
     job = s.open_clip(str(clip), wait=True)
     assert s.status == "error"
     assert "Couldn't download the SAM 2 model" in job.error and "internet" in job.error
+
+
+def test_finish_reports_when_resolve_never_answers(tmp_path, clip):
+    done = tmp_path / "z.done"
+    srv = Server(tmp_path, done_file=str(done))
+    srv.app.handoff_timeout = 0.5
+    try:
+        open_clip(srv, clip)
+        assert srv.req("/api/finish", {})[0] == 400  # nothing exported yet
+        x, y = ball_center(1)
+        srv.req("/api/point", {"frame": 1, "obj": 1, "x": x, "y": y})
+        srv.req("/api/track", {})
+        srv.wait_job()
+        srv.req("/api/export", {"formats": ["cutout"]})
+        srv.wait_job()
+        code, s = srv.req("/api/finish", {})
+        assert code == 200 and s["handoff"]["status"] == "waiting" and done.exists()
+        assert "cutout_video" in done.read_text()
+        time.sleep(1.2)
+        _, s = srv.req("/api/state")
+        assert s["handoff"]["status"] == "timeout" and "Console" in s["handoff"]["message"]
+    finally:
+        srv.stop()

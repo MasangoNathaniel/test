@@ -26,7 +26,10 @@ IS_WIN = os.name == "nt"
 LUA = (ROOT / "resolve" / "FreeMask.lua").read_text()
 
 MOCK_RESOLVE = r"""
-calls = { imports = {}, appends = {}, tracks_added = 0, folders = {} }
+-- A small simulated DaVinci Resolve. QUIRKS (a table set from Python) switches on
+-- failure modes seen in real Resolve versions so the script's fallbacks get exercised.
+QUIRKS = QUIRKS or {}
+calls = { imports = {}, appends = {}, tracks_added = 0, folders = {}, storage_imports = {}, deleted_tracks = {} }
 local function obj(t) return t end
 
 local clip_path = CLIP_PATH
@@ -40,13 +43,18 @@ item = obj({
 })
 
 local video_tracks = 1
+tracks = { [1] = { item } }
 timeline = obj({
   GetCurrentVideoItem = function(self) return HAS_ITEM and item or nil end,
   GetSetting = function(self, k) if k == "timelineFrameRate" then return "25" end end,
   GetCurrentTimecode = function(self) return PLAYHEAD_TC end,
-  AddTrack = function(self, kind) video_tracks = video_tracks + 1; calls.tracks_added = calls.tracks_added + 1; return true end,
+  AddTrack = function(self, kind)
+    video_tracks = video_tracks + 1; tracks[video_tracks] = {}
+    calls.tracks_added = calls.tracks_added + 1; return true end,
+  DeleteTrack = function(self, kind, i) table.insert(calls.deleted_tracks, i); return true end,
   GetTrackCount = function(self, kind) return video_tracks end,
   SetTrackName = function(self, kind, i, name) calls.track_name = name; return true end,
+  GetItemListInTrack = function(self, kind, i) return tracks[i] or {} end,
 })
 
 local function folder(name)
@@ -57,6 +65,13 @@ local function folder(name)
 end
 local root = folder("Master")
 
+local function new_mpi(src)
+  local m = { kind = "mpi", src = src, props = {} }
+  m.SetClipProperty = function(self, k, v) self.props[k] = v; return true end
+  m.GetClipProperty = function(self, k) return self.props[k] end
+  return m
+end
+
 media_pool = obj({
   GetRootFolder = function(self) return root end,
   AddSubFolder = function(self, parent, name)
@@ -66,13 +81,41 @@ media_pool = obj({
     local out = {}
     for _, v in ipairs(list) do
       table.insert(calls.imports, v)
-      table.insert(out, { kind = "mpi", src = v })
+      local is_seq = type(v) == "table"
+      if not (QUIRKS.seq_import_fails and is_seq) and not (QUIRKS.import_fails) then
+        table.insert(out, new_mpi(v))
+      end
     end
     return out
   end,
   AppendToTimeline = function(self, infos)
-    for _, v in ipairs(infos) do table.insert(calls.appends, v) end
-    return { {} }
+    local out = {}
+    for _, v in ipairs(infos) do
+      table.insert(calls.appends, v)
+      local ok = not QUIRKS.no_place
+      if QUIRKS.rejects_mediatype and v.mediaType then ok = false end
+      if QUIRKS.silent_failure_with_range and v.startFrame then ok = false end
+      if ok then
+        local t = v.trackIndex or 1
+        tracks[t] = tracks[t] or {}
+        table.insert(tracks[t], { placed = v.mediaPoolItem })
+        table.insert(out, {})
+      elseif QUIRKS.silent_failure_with_range then
+        table.insert(out, {})  -- claims success but adds nothing (seen in the wild)
+      end
+    end
+    return out
+  end,
+})
+
+media_storage = obj({
+  AddItemListToMediaPool = function(self, list)
+    local out = {}
+    for _, v in ipairs(list) do
+      table.insert(calls.storage_imports, v)
+      table.insert(out, new_mpi(v))
+    end
+    return out
   end,
 })
 
@@ -84,14 +127,17 @@ resolve = obj({
   GetProjectManager = function(self)
     return { GetCurrentProject = function(self) return project end }
   end,
+  GetMediaStorage = function(self) return media_storage end,
+  GetVersionString = function(self) return "20.0 (simulated)" end,
 })
 """
 
 
 def run_lua(home, clip_path, *, launcher=None, left=0, duration=12, playhead="01:00:04:05",
-            has_item=True, has_media=True, has_timeline=True, extra_globals=None):
+            has_item=True, has_media=True, has_timeline=True, extra_globals=None, quirks=()):
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
+    g.QUIRKS = lua.table_from({q: True for q in quirks})
     for k, v in (extra_globals or {}).items():
         g[k] = v
     g.CLIP_PATH = str(clip_path)
@@ -123,6 +169,9 @@ def run_lua(home, clip_path, *, launcher=None, left=0, duration=12, playhead="01
         "tracks_added": calls.tracks_added,
         "folders": list(calls.folders.values()),
         "track_name": calls.track_name,
+        "storage_imports": tolist(calls.storage_imports),
+        "deleted_tracks": list(calls.deleted_tracks.values()),
+        "track2": [dict(v) for v in (g.tracks[2] or {}).values()] if g.tracks[2] else [],
     }
 
 
@@ -177,6 +226,24 @@ def test_guards(home, clip):
     assert "isn't installed" in r["printed"][-1]
 
 
+def fake_export(a, *, cutout_video=True):
+    """Write what the app writes on Finish: the done-file (and empty output folders)."""
+    out = Path(a["out"])
+    for suffix in ("matte", "cutout"):
+        (out / f"{a['name']}_{suffix}").mkdir(parents=True, exist_ok=True)
+    lines = [f"png={out / (a['name'] + '_matte')}", f"cutout={out / (a['name'] + '_cutout')}",
+             f"video={out / (a['name'] + '_matte.mov')}", "first_frame=3", "frame_count=12", "fps=25",
+             f"name={a['name']}"]
+    if cutout_video:
+        lines.append(f"cutout_video={out / (a['name'] + '_cutout.mov')}")
+    Path(a["done-file"]).write_text("\n".join(lines) + "\n")
+
+
+def read_result(a):
+    p = Path(a["done-file"] + ".result")
+    return dict(line.split("=", 1) for line in p.read_text().splitlines() if "=" in line)
+
+
 def test_command_and_import(home, clip):
     seen = {}
 
@@ -184,12 +251,7 @@ def test_command_and_import(home, clip):
         seen["cmd"] = cmd
         a = parse_cmd(cmd)
         seen["args"] = a
-        out = Path(a["out"])
-        for sub, suffix in (("png", "matte"), ("cutout", "cutout")):
-            (out / f"{a['name']}_{suffix}").mkdir(parents=True, exist_ok=True)
-        Path(a["done-file"]).write_text(
-            f"png={out / (a['name'] + '_matte')}\ncutout={out / (a['name'] + '_cutout')}\n"
-            f"video={out / (a['name'] + '_matte.mov')}\nfirst_frame=3\nframe_count=12\nfps=25\nname={a['name']}\n")
+        fake_export(a)
 
     r = run_lua(home, clip, launcher=launcher, left=3, duration=12, playhead="01:00:04:05")
     a = seen["args"]
@@ -210,11 +272,73 @@ def test_command_and_import(home, clip):
     seq = [i for i in imports if isinstance(i, dict)]
     assert {Path(i["FilePath"]).name for i in seq} == {"A001_C002_3-14_matte_%06d.png", "A001_C002_3-14_cutout_%06d.png"}
     assert all(i["StartIndex"] == 3 and i["EndIndex"] == 14 for i in seq)
-    assert any(isinstance(i, str) and i.endswith(".mov") for i in imports)
+    assert sum(isinstance(i, str) and i.endswith(".mov") for i in imports) == 2
+    # The cutout MOVIE is placed first time, on a new track, at the clip's position.
     (append,) = r["appends"]
     assert append["recordFrame"] == 90100 and append["startFrame"] == 0 and append["endFrame"] == 11
     assert append["trackIndex"] == 2 and r["tracks_added"] == 1 and r["track_name"] == "FreeMask"
-    assert dict(append["mediaPoolItem"])["src"]["FilePath"].endswith("_cutout_%06d.png")
+    placed = dict(append["mediaPoolItem"])
+    assert placed["src"].endswith("_cutout.mov") and dict(placed["props"])["Alpha mode"] == "Straight"
+    assert len(r["track2"]) == 1
+    res = read_result(a)
+    assert res["ok"] == "1" and "track V2" in res["message"] and res["log"].endswith("_resolve.log")
+    assert "cutout movie" in Path(res["log"]).read_text()
+
+
+@pytest.mark.parametrize("quirk, expect_attempts", [
+    ("rejects_mediatype", 2),            # Resolve that dislikes mediaType -> 2nd attempt works
+    ("silent_failure_with_range", 4),    # claims success but adds nothing -> verified, retried
+])
+def test_placement_fallbacks(home, clip, quirk, expect_attempts):
+    seen = {}
+
+    def launcher(cmd):
+        seen.update(parse_cmd(cmd))
+        fake_export(seen)
+
+    r = run_lua(home, clip, launcher=launcher, quirks=[quirk])
+    assert r["ok"] is True, r["printed"]
+    assert len(r["appends"]) == expect_attempts and len(r["track2"]) == 1
+    assert read_result(seen)["ok"] == "1"
+
+
+def test_sequence_import_falls_back_to_media_storage(home, clip):
+    seen = {}
+
+    def launcher(cmd):
+        seen.update(parse_cmd(cmd))
+        fake_export(seen, cutout_video=False)
+
+    r = run_lua(home, clip, launcher=launcher, quirks=["seq_import_fails"])
+    assert r["ok"] is True, r["printed"]
+    assert any(p.endswith("_cutout") for p in r["storage_imports"])
+    assert len(r["track2"]) == 1
+
+
+def test_cannot_place_reports_clearly_and_removes_empty_track(home, clip):
+    seen = {}
+
+    def launcher(cmd):
+        seen.update(parse_cmd(cmd))
+        fake_export(seen)
+
+    r = run_lua(home, clip, launcher=launcher, quirks=["no_place"])
+    assert r["ok"] is False
+    assert r["deleted_tracks"] == [2]
+    res = read_result(seen)
+    assert res["ok"] == "0" and "FreeMask bin" in res["message"] and "Drag" in res["message"]
+
+
+def test_nothing_imports_reports_clearly(home, clip):
+    seen = {}
+
+    def launcher(cmd):
+        seen.update(parse_cmd(cmd))
+        fake_export(seen)
+
+    r = run_lua(home, clip, launcher=launcher, quirks=["import_fails"])
+    # Media Storage fallback rescues the movies even when ImportMedia fails
+    assert r["ok"] is True and r["storage_imports"]
 
 
 def test_playhead_maps_to_source_frame(home, clip):
@@ -350,6 +474,18 @@ def test_end_to_end(home, clip, monkeypatch):
     req("/api/export", {"formats": ["png", "cutout", "video"]})
     s = wait()
     assert s["job"]["error"] is None, s["job"]
+    assert s["from_resolve"] is True and s["last_export"]["cutout_video"].endswith("_cutout.mov")
+
+    # "Finish & send to Resolve": the app hands over and shows what Resolve reports back.
+    s = req("/api/finish", {})
+    assert s["handoff"]["status"] == "waiting"
+    for _ in range(200):
+        s = req("/api/state")
+        if s["handoff"]["status"] != "waiting":
+            break
+        time.sleep(0.1)
+    assert s["handoff"]["status"] == "done" and s["handoff"]["ok"] is True, s["handoff"]
+    assert "track V2" in s["handoff"]["message"]
     req("/api/quit", {})
 
     t.join(30)
@@ -361,4 +497,6 @@ def test_end_to_end(home, clip, monkeypatch):
         first = i["FilePath"].replace("%06d", "000002")
         assert os.path.exists(first), first
     assert result["appends"][0]["recordFrame"] == 90100
-    assert any(isinstance(i, str) and os.path.exists(i) for i in result["imports"])  # the .mov
+    placed = dict(result["appends"][0]["mediaPoolItem"])["src"]
+    assert placed.endswith("_cutout.mov") and os.path.exists(placed)
+    assert all(os.path.exists(i) for i in result["imports"] if isinstance(i, str))

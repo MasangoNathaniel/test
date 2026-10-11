@@ -47,6 +47,46 @@ class App:
         self.bye_at = None
         self.httpd: ThreadingHTTPServer | None = None
         self._stopping = False
+        self.handoff = None  # set once the mattes have been handed to Resolve
+        self.handoff_timeout = 120.0
+
+    # Resolve hand-off ----------------------------------------------------------------
+
+    def extra_state(self) -> dict:
+        return {"from_resolve": bool(self.done_file), "handoff": self.handoff}
+
+    def finish(self):
+        """Hand the export to the waiting Resolve script and wait for its report."""
+        if not self.done_file:
+            return
+        if not self.session.last_export:
+            raise ValueError("Export first, then send to Resolve.")
+        self.handoff = {"status": "waiting"}
+        result_file = Path(self.done_file + ".result")
+        result_file.unlink(missing_ok=True)
+        self.write_done_file()
+
+        def wait():
+            deadline = time.time() + self.handoff_timeout
+            while time.time() < deadline and not self._stopping:
+                if result_file.exists():
+                    time.sleep(0.1)  # let the script finish writing
+                    kv = {}
+                    for line in result_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                        if "=" in line:
+                            k, v = line.split("=", 1)
+                            kv[k.strip()] = v.strip()
+                    result_file.unlink(missing_ok=True)
+                    self.handoff = {"status": "done", "ok": kv.get("ok") == "1",
+                                    "message": kv.get("message", ""), "log": kv.get("log", "")}
+                    print("Resolve says:", self.handoff["message"])
+                    return
+                time.sleep(0.2)
+            self.handoff = {"status": "timeout",
+                            "message": "DaVinci Resolve didn't answer. Check Workspace › Console in Resolve; "
+                                       "your files are saved in " + str(self.session.out_dir)}
+
+        threading.Thread(target=wait, daemon=True).start()
 
     # lifecycle ------------------------------------------------------------------
 
@@ -85,7 +125,8 @@ class App:
                 self.heartbeat()
                 last_beat = now
             job = self.session.job
-            busy = job is not None and not job.done and job.kind == "export"
+            busy = (job is not None and not job.done and job.kind == "export") or (
+                self.handoff is not None and self.handoff.get("status") == "waiting")
             if busy:
                 continue
             if self.bye_at and now - self.bye_at > self.bye_grace:
@@ -124,7 +165,8 @@ class App:
         finally:
             self.httpd.server_close()
             try:
-                self.write_done_file()
+                if self.handoff is None:  # already handed over otherwise
+                    self.write_done_file()
             finally:
                 if self.done_file:
                     Path(self.done_file + ".alive").unlink(missing_ok=True)
@@ -198,7 +240,7 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/assets/"):
             return self._static(path[len("/assets/"):])
         if path == "/api/state":
-            return self._json(s.snapshot())
+            return self._json({**s.snapshot(), **self.app.extra_state()})
         if path.startswith("/api/frame/"):
             i = int(path.rsplit("/", 1)[1])
             s._require_image(i)
@@ -240,11 +282,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/quit":
             a.quit()
             return self._json({"ok": True})
+        if path == "/api/finish":
+            a.finish()
+            return self._json({**s.snapshot(), **a.extra_state()})
         if path == "/api/open":
             end = b.get("end")
             s.open_clip(str(b["path"]).strip().strip('"').strip("'"), int(b.get("start") or 0),
                         None if end in (None, "") else int(end))
-            return self._json(s.snapshot())
+            return self._json({**s.snapshot(), **a.extra_state()})
         if path == "/api/point":
             s.add_point(int(b["frame"]), int(b["obj"]), float(b["x"]), float(b["y"]), int(b.get("label", 1)))
         elif path == "/api/box":
@@ -267,7 +312,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"path": s.save_session()})
         else:
             return self._json({"error": "Not found"}, 404)
-        self._json(s.snapshot())
+        self._json({**s.snapshot(), **a.extra_state()})
 
 
 # ----------------------------------------------------------------------------- window

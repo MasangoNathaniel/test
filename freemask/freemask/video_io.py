@@ -215,7 +215,8 @@ class MatteWriter:
     """Writes refined mattes to disk in one or more Resolve-friendly formats.
 
     * ``png``    – 16-bit grayscale PNG sequence (white = selected). Default.
-    * ``cutout`` – RGBA PNG sequence of the source with the matte as alpha.
+    * ``cutout`` – RGBA PNG sequence of the source with the matte as alpha, plus the same
+      as a ProRes 4444 movie with alpha (one file: the most reliable thing to import).
     * ``video``  – a grayscale matte movie (ProRes 422 HQ .mov via ffmpeg,
       falling back to an .mp4 written by OpenCV when ffmpeg is unavailable).
     """
@@ -229,11 +230,13 @@ class MatteWriter:
         self.paths: dict[str, Path] = {}
         self._ffmpeg = None
         self._cv_writer = None
+        self._cutout_ffmpeg = None
 
         if "png" in formats:
             self.paths["png"] = self._mkdir(f"{name}_matte")
         if "cutout" in formats:
             self.paths["cutout"] = self._mkdir(f"{name}_cutout")
+            self._open_cutout_video()
         if "video" in formats:
             self._open_video()
 
@@ -262,6 +265,23 @@ class MatteWriter:
             self._cv_writer = cv2.VideoWriter(str(path), fourcc, fps, (w, h), True)
         self.paths["video"] = path
 
+    def _open_cutout_video(self):
+        ffmpeg = find_ffmpeg()
+        if not ffmpeg:
+            return
+        w, h, fps = self.info.width, self.info.height, self.info.fps
+        path = self.out_dir / f"{self.name}_cutout.mov"
+        cmd = [
+            ffmpeg, "-y", "-loglevel", "error",
+            "-f", "rawvideo", "-pix_fmt", "bgra", "-s", f"{w}x{h}", "-r", f"{fps}",
+            "-i", "-",
+            "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16",
+            "-vendor", "apl0",
+            str(path),
+        ]
+        self._cutout_ffmpeg = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        self.paths["cutout_video"] = path
+
     def write(self, matte: np.ndarray, frame_bgr: np.ndarray | None = None):
         """``matte`` is float32 in [0, 1] at full source resolution."""
         frame_no = self.info.first_frame + self.index
@@ -274,6 +294,8 @@ class MatteWriter:
             alpha = np.round(np.clip(matte, 0, 1) * 255).astype(np.uint8)
             rgba = np.dstack([frame_bgr, alpha])
             imwrite(self.paths["cutout"] / f"{self.name}_cutout_{frame_no:06d}.png", rgba)
+            if self._cutout_ffmpeg:
+                self._cutout_ffmpeg.stdin.write(np.ascontiguousarray(rgba).tobytes())
         m8 = None
         if self._ffmpeg or self._cv_writer:
             m8 = np.round(np.clip(matte, 0, 1) * 255).astype(np.uint8)
@@ -284,6 +306,11 @@ class MatteWriter:
         self.index += 1
 
     def close(self):
+        if self._cutout_ffmpeg:
+            self._cutout_ffmpeg.stdin.close()
+            if self._cutout_ffmpeg.wait() != 0:
+                raise RuntimeError("ffmpeg failed while writing the cutout movie")
+            self._cutout_ffmpeg = None
         if self._ffmpeg:
             self._ffmpeg.stdin.close()
             if self._ffmpeg.wait() != 0:

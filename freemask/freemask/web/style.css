@@ -263,6 +263,16 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bo
 .paths { list-style: none; padding: 0; margin: 0 0 20px; display: grid; gap: 6px; text-align: left; }
 .paths li { font: 11.5px var(--mono); color: var(--muted); background: rgba(0, 0, 0, .3); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; word-break: break-all; user-select: text; }
 .paths li b { color: #cfc4ff; font-family: var(--font); margin-right: 6px; }
+.handoff { display: flex; gap: 12px; align-items: flex-start; text-align: left; margin: -6px 0 20px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, .03); }
+.handoff p { margin: 0; font-size: 13px; line-height: 1.45; user-select: text; }
+.handoff small { display: block; margin-top: 4px; font: 10.5px var(--mono); color: var(--faint); word-break: break-all; user-select: text; }
+.handoff-icon { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; }
+.handoff.wait .handoff-icon { border: 2px solid rgba(255, 255, 255, .15); border-top-color: var(--accent-2); animation: spin .8s linear infinite; }
+.handoff.ok { border-color: rgba(61, 220, 151, .4); background: rgba(61, 220, 151, .07); }
+.handoff.ok .handoff-icon { background: var(--ok); box-shadow: 0 0 12px rgba(61, 220, 151, .6); }
+.handoff.warn { border-color: rgba(255, 196, 61, .45); background: rgba(255, 196, 61, .07); }
+.handoff.warn .handoff-icon { background: #ffc43d; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .modal-actions { display: flex; gap: 10px; justify-content: center; }
 
 .toasts { position: fixed; z-index: 60; left: 50%; top: 128px; transform: translateX(-50%); display: grid; gap: 8px; justify-items: center; pointer-events: none; }
