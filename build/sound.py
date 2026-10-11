@@ -16,14 +16,14 @@ import numpy as np
 from scipy.signal import butter, sosfilt, sosfilt_zi, fftconvolve
 
 FS = 48000
-DUR = 23.10
+DUR = 19.84
 N = int(round(DUR * FS))
 BPM = 124.0
 B = 60 / BPM
-DROP = 9.00
-T0 = DROP - 16 * B          # first intro downbeat (bar -4)
-STOP = 18.10
-T1 = 20.35                  # logo section downbeat
+DROP = 6.80
+T0 = DROP - 12 * B          # first intro downbeat (bar -3)
+STOP = 15.24
+T1 = 17.05                  # logo section downbeat
 rng = np.random.default_rng(11)
 
 
@@ -215,7 +215,7 @@ def build_music():
         add(pads, x, 0.0, 0.22, rng.uniform(-.5, .5))
 
     # --- intro bars -4..-1 and groove bars 0..4
-    for b in range(-4, 5):
+    for b in range(-3, 5):
         tb = bar_time(b)
         if tb >= STOP:
             break
@@ -224,7 +224,7 @@ def build_music():
         # pad: filter opens across intro, fully open after drop
         d = 4 * B + 0.4
         if intro:
-            f0 = 450 + (b + 4) * 380; f1 = f0 + 380
+            f0 = 520 + (b + 3) * 480; f1 = f0 + 480
             curve = np.linspace(f0, f1, int(d * FS))
         else:
             curve = np.full(int(d * FS), 3200.0)
@@ -286,7 +286,7 @@ def build_music():
     add(fx, lp(gl, 3000), tr0, 0.05)
 
     # crash/fill at bar 2 (S4 cut) and the drop
-    for tc, g in [(DROP, 0.35), (bar_time(2), 0.22)]:
+    for tc, g in [(DROP, 0.35), (11.40, 0.22)]:
         add(fx, hp(noise(2.0), 4500) * env_exp(2.0, 0.55), tc, g)
 
     # --- tape stop at STOP on the music buses
@@ -417,64 +417,67 @@ def coin():
     return np.concatenate([bell(n('B6'), 0.08, 0.6)[:int(0.08 * FS)], bell(n('E7'), 0.7, 0.8)]) * 1.2
 
 def build_sfx():
+    """Cue times come from the ElevenLabs word timestamps of voiceover v2."""
     s = blank()
     def P(t, g=0.32, pitch=1.0, w=0.0, pan=0.0):
         add(s, pop(pitch, w), t, g, pan)
-    # S1
+    # S1  stuck(0.74) with zero(1.18) sales(1.48), poor(2.02) engagement and bad(3.06) leads(3.28)
     add(s, glitch(0.55), 0.05, 0.10)
     add(s, power_on(), 0.10, 0.22)
-    P(0.62, 0.40, 0.8, 0.9); P(0.85, 0.30, 1.0)
-    add(s, sine_sweep(880, 260, 3.1) * env_ar(int(3.1 * FS), 0.3, 0.6) , 0.7, 0.025)   # falling graph tone
-    P(2.05, 0.28, 1.15, pan=-0.2); P(3.00, 0.40, 0.75, 1.0)
-    # S2
-    add(s, whoosh(0.35), 4.30 - 0.30, 0.22, 0.3)
-    P(4.36, 0.26, 1.1)
-    add(s, swipe(0.3), 4.45, 0.12, -0.3)
-    tt = 4.6
-    while tt < 8.1:   # spend counter ticks, sparse and quiet
+    P(1.18, 0.40, 0.8, 0.9); P(1.48, 0.30, 1.0)
+    add(s, sine_sweep(880, 260, 2.5) * env_ar(int(2.5 * FS), 0.3, 0.6), 1.18, 0.025)   # falling graph tone
+    P(2.02, 0.28, 1.15, pan=-0.2); P(3.06, 0.40, 0.75, 1.0)
+    # S2  agar aap bhi business(4.36) owner hain, aur ads pe result(5.78) nahi aa rahe(6.56)
+    add(s, whoosh(0.35), 3.80 - 0.30, 0.22, 0.3)
+    P(4.30, 0.26, 1.1)
+    add(s, swipe(0.3), 4.40, 0.12, -0.3)
+    tt = 4.55
+    while tt < 6.40:   # spend counter ticks, sparse and quiet
         add(s, tick(4200, g=1.0), tt, 0.035, 0.4)
         tt += 0.09
-    P(6.75, 0.36, 0.85, 0.6); add(s, error_tone(), 6.80, 0.20)
-    add(s, swipe(0.25), 6.95, 0.12, 0.4)
-    P(8.42, 0.35, 0.7, 0.8)
-    add(s, whoosh(0.55, 200, 7000, 0.85), 9.0 - 0.52, 0.38)
-    add(s, impact(52, 1.4), 9.0, 0.45)
-    # S3
-    P(9.02, 0.24, 1.2); P(9.22, 0.28, 0.9)
-    add(s, swipe(), 9.85, 0.10)
-    P(9.95, 0.20, 1.3); P(10.05, 0.24, 1.1); P(10.30, 0.28, 0.9, 0.4)
-    add(s, swipe(), 11.08, 0.10)
-    P(11.12, 0.18, 1.3)
-    add(s, impact(70, 0.6), 11.20, 0.38); add(s, tick(2500, 0.03), 11.20, 0.5)
-    add(s, swipe(0.25), 11.45, 0.14, -0.3); add(s, swipe(0.25), 11.75, 0.14, 0.3)
-    # S4
-    add(s, whoosh(0.3), 12.95 - 0.26, 0.20, -0.3)
-    P(13.45, 0.30, 1.0, 0.4); P(13.70, 0.26, 0.85)
-    for t0, m in [(14.72, 'E6'), (15.87, 'G6'), (16.72, 'A6')]:
+    P(5.78, 0.36, 0.85, 0.6); add(s, error_tone(), 5.83, 0.20)
+    add(s, swipe(0.25), 5.98, 0.12, 0.4)
+    P(6.28, 0.35, 0.7, 0.8)
+    add(s, whoosh(0.55, 200, 7000, 0.85), DROP - 0.52, 0.38)
+    add(s, impact(52, 1.4), DROP, 0.45)
+    # S3  so don't(6.92) worry(7.18). hum(8.10) aapke(8.28) brand(8.56)… offer(9.06)… free(9.78) business(10.0) consultancy(10.36) meeting(10.88)
+    P(6.92, 0.24, 1.2); P(7.18, 0.28, 0.9)
+    add(s, swipe(), 7.93, 0.10)
+    P(8.10, 0.20, 1.3); P(8.28, 0.24, 1.1); P(8.56, 0.28, 0.9, 0.4)
+    add(s, swipe(), 8.98, 0.10)
+    P(9.06, 0.18, 1.3)
+    add(s, impact(70, 0.6), 9.78, 0.38); add(s, tick(2500, 0.03), 9.78, 0.5)
+    add(s, swipe(0.22), 10.00, 0.11, 0.0)
+    add(s, swipe(0.25), 10.36, 0.14, -0.3); add(s, swipe(0.25), 10.88, 0.14, 0.3)
+    # S4  exact(12.30) batayenge(12.66) ki aapka brand(13.76) kahan pe lack(14.40) kar raha hai(14.84)
+    add(s, whoosh(0.3), 11.40 - 0.26, 0.20, -0.3)
+    P(12.30, 0.30, 1.0, 0.4); P(12.66, 0.26, 0.85)
+    for t0, m in [(13.88, 'E6'), (14.52, 'G6'), (14.96, 'A6')]:
         add(s, bell(n(m), 1.0, 1.2), t0, 0.16, 0.2)
         add(s, tick(5000), t0, 0.15)
     for k in range(4):
-        add(s, pop(1.0 + k * 0.18), 15.2 + k * 0.18, 0.14, -0.3 + k * 0.2)
-    add(s, sine_sweep(330, 990, 1.6) * env_ar(int(1.6 * FS), 0.4, 0.4), 15.9, 0.02)
-    # S5 — music is stopped: these carry the moment
-    add(s, impact(48, 1.2), 18.32, 0.55); add(s, swipe(0.2), 18.12, 0.12)
-    add(s, impact(62, 0.6), 18.45, 0.30)
-    add(s, whoosh(0.18, 600, 8000, 0.7), 18.70, 0.18)
-    for k in range(4):
-        add(s, tick(2600 if k % 2 else 3400, 0.03, 1.0), 18.88 + k * 0.17, 0.45, (-0.3, 0.3)[k % 2])
-    add(s, slash(), 19.20, 0.35, 0.2)
-    add(s, whoosh(0.18, 600, 8000, 0.7), 19.40, 0.18)
-    add(s, coin(), 19.57, 0.20, 0.1)
-    add(s, slash(), 19.85, 0.35, -0.2)
-    # S6
+        add(s, pop(1.0 + k * 0.18), 13.2 + k * 0.16, 0.14, -0.3 + k * 0.2)
+    add(s, sine_sweep(330, 990, 1.4) * env_ar(int(1.4 * FS), 0.4, 0.4), 13.7, 0.02)
+    # S5  so don't(15.44) waste(15.68) your(15.92) time(16.08) and(16.46) money(16.64) — music stopped
+    add(s, swipe(0.2), 15.26, 0.12)
+    add(s, impact(48, 1.2), 15.44, 0.55)
+    add(s, impact(62, 0.6), 15.68, 0.30)
+    add(s, whoosh(0.18, 600, 8000, 0.7), 15.76, 0.18)
+    for k in range(3):
+        add(s, tick(2600 if k % 2 else 3400, 0.03, 1.0), 15.92 + k * 0.12, 0.45, (-0.3, 0.3)[k % 2])
+    add(s, slash(), 16.12, 0.35, 0.2)
+    add(s, whoosh(0.18, 600, 8000, 0.7), 16.30, 0.18)
+    add(s, coin(), 16.46, 0.20, 0.1)
+    add(s, slash(), 16.70, 0.35, -0.2)
+    # S6  click(17.46) below and reserve(18.30) your seat right(19.12) now(19.36)
     add(s, whoosh(0.5, 300, 9000, 0.9), T1 - 0.45, 0.18)
     add(s, impact(45, 1.6), T1 + 0.03, 0.30)
-    P(20.50, 0.16, 1.4)
     for k in range(6):
-        add(s, tick(3000 + k * 400, 0.025), 20.62 + k * 0.08, 0.22, -0.5 + k * 0.2)
-    add(s, tick(2200, 0.03), 21.15, 0.4); add(s, tick(3200, 0.03), 21.19, 0.3); P(21.17, 0.22, 1.0, 0.3)
-    P(21.30, 0.12, 1.5)
-    P(22.30, 0.24, 1.1, 0.3)
+        add(s, tick(3000 + k * 400, 0.025), 17.30 + k * 0.07, 0.22, -0.5 + k * 0.2)
+    P(17.46, 0.16, 1.4)
+    P(17.95, 0.12, 1.5)
+    add(s, tick(2200, 0.03), 18.30, 0.4); add(s, tick(3200, 0.03), 18.34, 0.3); P(18.32, 0.22, 1.0, 0.3)
+    P(19.12, 0.24, 1.1, 0.3)
     s = s + reverb(s, IR_SHORT, 0.18)
     return s
 

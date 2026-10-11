@@ -1,72 +1,70 @@
-# Sofwire ad — edit package (9:16, 1080×1920, 30fps, 23.10s)
+# Sofwire ad v2: edit package (9:16, 1080×1920, 30fps, 19.83s)
+
+Re-timed to the client's new voiceover (`voiceover.m4a`, v2). Every on-screen word and sound effect is locked to ElevenLabs word timestamps (`assets/voiceover_v2_words.json`), not estimated.
 
 ## Files
-- `sofwire_ad_preview.mp4`: quick-look preview with the voiceover (compressed, for sharing).
-- `sofwire_graphics_prores.mov`: full graphics track, ProRes 422 HQ, no audio. This is the master.
-- `shots/S1…S6.mov`: the same master cut at each shot change, so you can zoom, retime or swap shots one by one.
-- `voiceover.m4a`: the original voiceover.
-- `Sofwire_Ad_timeline.fcpxml`: timeline for DaVinci Resolve.
+| File | What |
+|---|---|
+| `sofwire_ad_preview_with_sound.mp4` | Preview with everything: voiceover, music and sound effects, −14 LUFS / −1.2 dBTP |
+| `sofwire_graphics_prores.mov` | Full graphics master, ProRes 422 HQ, no audio |
+| `shots/S1…S6.mov` | The master split at each cut |
+| `voiceover.m4a` | Client voiceover v2 |
+| `audio/sofwire_music_sfx_bed.wav` | Music + sound effects, already ducked under the voiceover. Put it on A2 at 0:00 |
+| `audio/music_unducked.wav` | Music stem, not ducked |
+| `audio/sfx_unducked.wav` | All sound effects on one track, each placed on its cue |
+| `audio/sfx_oneshots/*.wav` | 18 separate sound-effect files to place or swap yourself |
+| `audio/full_mix_reference_-14LUFS.wav` | Finished mix, for reference |
+| `Sofwire_Ad_timeline.fcpxml` | Resolve timeline: V1 shots, A1 voiceover, A2 bed |
+
+All audio is 48 kHz / 24-bit stereo and sample-aligned from 0:00.
 
 ## Into DaVinci Resolve
-1. Copy this folder to your machine.
-2. File → Import → Timeline… → `Sofwire_Ad_timeline.fcpxml`.
-3. Resolve will say media is offline. Relink it to the `shots/` folder and to `voiceover.m4a`.
-   The paths in the XML are placeholders (`/Sofwire_Ad/...`).
-4. Project settings: 1080×1920, 30fps (vertical).
+1. File → Import → Timeline → `Sofwire_Ad_timeline.fcpxml`.
+2. Relink the offline media to this folder (the paths in the XML are placeholders under `/Sofwire_Ad/...`).
+3. Leave the voiceover and the bed at 0 dB, then master to −14 LUFS.
+If the XML gives trouble: drop S1–S6 on V1 in order, the voiceover on A1 and the bed on A2, all at 0:00.
 
-If the XML gives you any trouble, the six shots are numbered. Drop them on V1 in order with `voiceover.m4a` on A1 at 0:00 and they line up exactly.
-
-## Left for you
-- **Camera moves:** none baked in. Suggested punch-ins are in the cue sheet.
-- **Music:** A2 is empty. The refs use upbeat electronic/house at about 120–125 BPM, ducked under the voiceover.
-- **Sound effects:** A3 is empty. Cues are below.
-
-## SFX / zoom cue sheet
-| Time | Shot | What happens on screen | Suggested SFX | Zoom idea |
+## Cue sheet (v2)
+| Time | Word | On screen | Sound effect | One-shot |
 |---|---|---|---|---|
-| 0:00.05 | S1 | Power icon glitches on | digital glitch / power-on blip | — |
-| 0:00.62 | S1 | "ZERO" pops | pop/thump | quick punch-in 105% |
-| 0:00.85 | S1 | "SALES" pops | pop | — |
-| 0:00.70–3.80 | S1 | Red graph line falls | descending synth / riser-down | slow push-in |
-| 0:02.05 | S1 | "POOR ENGAGEMENT" | pop | — |
-| 0:03.00 | S1 | "BAD LEADS?" | heavier pop | punch-in on "LEADS?" |
-| 0:04.30 | S2 | Cut to dashboard; "BUSINESS OWNER?" | whoosh | — |
-| 0:04.60–8.20 | S2 | Ad spend counts up | cash-register ticks / counter | slow push on card |
-| 0:06.75 | S2 | "NO RESULTS?" pops, blue underline swipes | error buzz + swipe | — |
-| 0:08.42 | S2 | Logo ring pops in centre | pop | — |
-| 0:08.62–9.00 | S2→S3 | Blue circle grows to fill the frame | big whoosh / riser | zoom-through feels great here |
-| 0:09.02 | S3 | "DON'T WORRY." | pop pop | — |
-| 0:09.95–10.30 | S3 | "FOR YOUR BRAND" | pops | — |
-| 0:11.20 | S3 | "FREE" tag slams in | impact / stamp | shake 2–3 frames |
-| 0:11.45 / 11.75 | S3 | CONSULTANCY / MEETING slide up | swish ×2 | — |
-| 0:12.95 | S4 | Cut to dark; "EXACT ACTION PLAN" | whoosh | — |
-| 0:14.60 / 15.75 / 16.60 | S4 | Checklist ticks | tick/ding ×3 | — |
-| 0:15.20–17.50 | S4 | Bars rise and the arrow climbs (the answer to S1's falling line) | rising synth | slow push-in |
-| 0:18.10 | S5 | Hard cut "DON'T WASTE" | hit | punch-in |
-| 0:18.85 | S5 | Clock on blue | clock tick | — |
-| 0:19.20 | S5 | Red strike | slash | — |
-| 0:19.55 | S5 | $ on dark | coin / cash | — |
-| 0:19.85 | S5 | Red strike | slash | — |
-| 0:20.38–21.10 | S6 | Logo build: blue ring and power icon, then letters slide up | soft whoosh + logo sting | gentle zoom-out settle |
-| 0:21.15 | S6 | "RESERVE YOUR SEAT" button pops (pulses from 21.6) | UI click | — |
-| 0:22.30 | S6 | "RIGHT NOW" | pop | — |
+| 0.05 | — | Power icon glitches on | glitch + power-on | 01 |
+| 1.18 | zero | "ZERO" pops; red graph starts falling | heavy pop + falling tone | 04, 18 |
+| 1.48 | sales | "SALES" | pop | 03 |
+| 2.02 | poor | "POOR ENGAGEMENT" | pop | 02 |
+| 3.06 | bad | "BAD LEADS?" | heavy pop | 04 |
+| 3.80 | (agar) | Cut to dashboard | whoosh | 05 |
+| 4.30 | business owner | "BUSINESS OWNER?", card slides in | pop + swipe | 03, 07 |
+| 4.55–6.40 | — | Ad spend counts up | counter ticks | 12 |
+| 5.78 | result | "NO RESULTS?" + underline | pop + error tone + swipe | 03, 16, 07 |
+| 6.28 | (aa rahe) | Logo ring pops in | heavy pop | 04 |
+| 6.28–6.80 | — | Blue circle fills the frame | big whoosh → **drop** | 06, 08 |
+| 6.92 / 7.18 | don't / worry | "DON'T WORRY." | pops | 02, 03 |
+| 8.10 / 8.28 / 8.56 | hum / aapke / brand | "FOR YOUR BRAND" | pops | 02–04 |
+| 9.06 | offer | "WE'RE OFFERING A" | pop | 02 |
+| 9.78 | free | "FREE" tag slams in | stamp | 09 |
+| 10.00 / 10.36 / 10.88 | business / consultancy / meeting | Lines slide up | swipes | 07 |
+| 11.40 | (jahan) | Cut to dark | whoosh | 05 |
+| 12.30 / 12.66 | exact / batayenge | "EXACT ACTION PLAN" | pops | 03 |
+| 13.2–13.7 | — | Bars rise, arrow climbs | rising pops | 02 |
+| 13.88 / 14.52 / 14.96 | brand / lack / hai | Checklist ticks ×3 | dings | 17 |
+| 15.24 | so | **Music tape-stops** | swipe | 07 |
+| 15.44 / 15.68 | don't / waste | "DON'T WASTE" | deep impact + impact | 10 |
+| 15.92 | your time | Clock on blue | clock ticks | 13 |
+| 16.12 | — | Red strike | slash | 14 |
+| 16.46 | and money | $ on dark | coin | 15 |
+| 16.70 | — | Red strike | slash | 14 |
+| 17.05 | — | Logo build begins; music blooms | whoosh + impact | 06, 08 |
+| 17.30–17.65 | — | Letters slide up | ticks | 11 |
+| 17.46 | click below | "CLICK BELOW ↓" | soft pop | 02 |
+| 18.30 | reserve | "RESERVE YOUR SEAT" button | UI click + pop | 11, 03 |
+| 19.12 | right now | "RIGHT NOW" | pop | 03 |
 
-## Notes
-- Word timings come from the voiceover's pauses and energy dips, not a transcript. Each beat lands on its phrase, but nudge a pop by a frame or two if a word reads early or late.
-- Fonts: Inter Display (Black/Bold). Colours: Sofwire blue #0B52D0, a lighter blue #5C91FF for text on dark, charcoal #231F20, and red #FF4242 for the "bad" stats.
-- To re-render after copy changes: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov`
+## What changed from v1
+- New voiceover is 19.8s (was 23.1s); the whole cut is re-timed to it.
+- **Sync fix:** "DON'T WORRY" now appears exactly on "so don't worry" (6.9s). In v1 it came after the blue transition, late against this read. The blue fill now lands just before the line.
+- Each text pop, checklist tick and strike sits on its spoken word, from ElevenLabs word timestamps.
+- Copy now follows the read: "FREE **BUSINESS** CONSULTANCY MEETING", and the first checklist item now reads "where your brand is lacking".
+- Music re-arranged: a 3-bar intro, the drop at 6.80s, the tape-stop at 15.24s, the logo bloom at 17.05s.
 
-## Music + sound design (`audio/`)
-Original music, composed and synthesised for this edit (no library tracks, so no licensing issues). Melodic house, 124 BPM, A minor (Am9, Fmaj9, Cmaj9, G6/9).
-
-| File | Use |
-|---|---|
-| `sofwire_music_sfx_bed.wav` | **Drop this on A2 at 0:00.** Music and SFX are already ducked under the voiceover. Voiceover and bed both at 0 dB, then master to −14 LUFS. |
-| `music_unducked.wav` / `sfx_unducked.wav` | Separate stems, not ducked, if you'd rather do your own ducking or rebalance music against SFX. |
-| `full_mix_reference_-14LUFS.wav` | Voiceover + bed mixed at −14 LUFS / −2.7 dBTP (social spec), for reference. |
-
-All files are 48 kHz, 24-bit stereo, 23.10s, sample-aligned to the picture from 0:00. The FCPXML now puts the bed on lane A2.
-
-**Arc:** dark Am9 swell and power-on → 4 muffled bars of tension, with the filter slowly opening under "zero sales / no results" → riser and the kick drops out → **the drop at 9.00s on the blue fill ("Don't worry")** → full groove with a pumping pad and ping-pong pluck arp → **tape-stop at 18.10s**, so "Don't waste" lands on hits in silence → sub swell and reverse shimmer → **Cmaj9 bloom with a bell arpeggio on the logo build** → rings out on the CTA.
-
-To regenerate: `python3 build/sound.py <voiceover 48k wav> out/audio`
+Re-render: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov` · `python3 build/sound.py <vo 48k wav> out/audio` · `python3 build/export_oneshots.py out/audio/sfx_oneshots`
+(v1 versions kept as `build/render_v1_23s.py`, `build/sound_v1_23s.py`)

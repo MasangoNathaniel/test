@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H, SS = 1080, 1920, 2
 SW, SH = W * SS, H * SS
-DUR = 23.10
+DUR = 19.84
 
 CHAR = (35, 31, 32)       # logo black
 CHAR_DK = (24, 21, 22)
@@ -192,25 +192,25 @@ def shot1(t):
     c = bg(CHAR); d = ImageDraw.Draw(c)
     corner_marks(d)
     # power icon glitch-in, then rises into brand tag
-    if t < 0.62:
+    if t < 0.74:
         p = prog(t, 0.05, 0.25)
         flick = 1 if (int(t * 30) % 3) else 0.35
         paste_piece_centred(c, 'B_power', BLUE, 2600, W / 2, H / 2, 1, p * flick)
     else:
         brand_tag(c, t)
     # stacked kinetic words
-    pop(c, text_layer('ZERO', 190, BLUE_LT), W / 2, 560, t, 0.62)
-    pop(c, text_layer('SALES', 150, WHITE), W / 2, 730, t, 0.85)
-    pop(c, text_layer('POOR ENGAGEMENT', 78, WHITE), W / 2, 880, t, 2.05)
-    pop(c, text_layer('BAD LEADS?', 132, WHITE), W / 2, 1020, t, 3.00)
+    pop(c, text_layer('ZERO', 190, BLUE_LT), W / 2, 560, t, 1.18)
+    pop(c, text_layer('SALES', 150, WHITE), W / 2, 730, t, 1.48)
+    pop(c, text_layer('POOR ENGAGEMENT', 78, WHITE), W / 2, 880, t, 2.02)
+    pop(c, text_layer('BAD LEADS?', 132, WHITE), W / 2, 1020, t, 3.06)
     # falling line graph
-    if t > 0.7:
+    if t > 1.18:
         gx0, gy0, gx1, gy1 = 150, 1180, 930, 1560
         for k in range(4):  # baseline grid
             y = gy0 + k * (gy1 - gy0) / 3
             d.line([S(gx0), S(y), S(gx1), S(y)], fill=(255, 255, 255, 28), width=S(2))
         pts = [(gx0, gy0 + 20), (300, 1250), (420, 1220), (540, 1340), (650, 1310), (780, 1460), (gx1 - 30, 1530)]
-        frac = ease_in_out(prog(t, 0.7, 3.1))
+        frac = ease_in_out(prog(t, 1.18, 2.5))
         tip = partial_polyline(d, pts, frac, RED, 12)
         if frac > 0.02:
             i = min(len(pts) - 2, int(frac * (len(pts) - 1)))
@@ -223,9 +223,9 @@ def shot2(t):
     c = bg(CHAR); d = ImageDraw.Draw(c)
     corner_marks(d); brand_tag(c, t)
     lt = t - 4.30
-    pop(c, text_layer('BUSINESS OWNER?', 92, WHITE), W / 2, 470, t, 4.36)
+    pop(c, text_layer('BUSINESS OWNER?', 92, WHITE), W / 2, 470, t, 4.30)
     # ads dashboard card
-    p = ease_out(prog(t, 4.45, 0.35))
+    p = ease_out(prog(t, 4.40, 0.35))
     if p > 0:
         cy = 1010 + 80 * (1 - p)
         card = Image.new('RGBA', (SW, SH), (0, 0, 0, 0)); cd = ImageDraw.Draw(card)
@@ -234,28 +234,28 @@ def shot2(t):
         rect(cd, x0, y0, x1, y0 + 96, (60, 55, 57, 255), 36); rect(cd, x0, y0 + 60, x1, y0 + 96, (60, 55, 57, 255))
         cd.ellipse([S(x0 + 40), S(y0 + 36), S(x0 + 64), S(y0 + 60)], fill=BLUE + (255,))
         paste(card, text_layer('Ad Campaign  •  Active', 30, (220, 216, 217), 'SemiBold'), x0 + 84, y0 + 48, anchor='l')
-        spend = int(25 + 475 * ease_in_out(prog(t, 4.6, 3.6)))
+        spend = int(25 + 475 * ease_in_out(prog(t, 4.55, 1.9)))
         rows = [('Ad spend', f'${spend}', WHITE), ('Leads', '0', RED), ('Sales', '0', RED), ('ROI', '-100%', RED)]
         for k, (lab, val, col) in enumerate(rows):
             ry = y0 + 170 + k * 128
             paste(card, text_layer(lab, 42, GREY, 'Medium'), x0 + 60, ry, anchor='l')
             v = text_layer(val, 64, col, 'Black')
-            jitter = (2 if (k and int(t * 20) % 2 and t < 7.5) else 0)
+            jitter = (2 if (k and int(t * 20) % 2 and t < 6.3) else 0)
             paste(card, v, x1 - 60 - v.width / SS / 2 + jitter, ry)
             if k < 3:
                 cd.line([S(x0 + 50), S(ry + 64), S(x1 - 50), S(ry + 64)], fill=(255, 255, 255, 25), width=S(2))
         if p < 1:
             a = card.getchannel('A').point(lambda v: int(v * p)); card.putalpha(a)
         c.alpha_composite(card)
-    pop(c, text_layer('NO RESULTS?', 120, WHITE), W / 2, 1530, t, 6.75)
+    pop(c, text_layer('NO RESULTS?', 120, WHITE), W / 2, 1530, t, 5.78)
     # underline swipe under NO RESULTS
-    u = ease_out(prog(t, 6.95, 0.3))
+    u = ease_out(prog(t, 5.98, 0.3))
     if u > 0:
         rect(d, W / 2 - 340, 1610, W / 2 - 340 + 680 * u, 1626, BLUE + (255,), 8)
     # ring pops in at the end → transition handled in shot3
     return c
 
-def ring_transition(c, t, t0=8.42, t_fill=8.62, t_end=9.0):
+def ring_transition(c, t, t0=6.28, t_fill=6.46, t_end=6.80):
     """Logo 'o' ring pops at centre, then a blue circle grows from it to fill the frame."""
     p = prog(t, t0, 0.2)
     if p <= 0:
@@ -272,15 +272,15 @@ def shot3(t):
     c = bg(BLUE); d = ImageDraw.Draw(c)
     corner_marks(d, (255, 255, 255, 90))
     brand_tag(c, t, WHITE, WHITE)
-    pop(c, text_layer("DON'T", 170, WHITE), W / 2, 760, t, 9.02, out_t=9.85)
-    pop(c, text_layer('WORRY.', 170, CHAR), W / 2, 950, t, 9.22, out_t=9.85)
+    pop(c, text_layer("DON'T", 170, WHITE), W / 2, 760, t, 6.92, out_t=7.95)
+    pop(c, text_layer('WORRY.', 170, CHAR), W / 2, 950, t, 7.18, out_t=7.95)
     # offer
-    pop(c, text_layer('FOR', 70, WHITE, 'Bold', track=2), W / 2, 680, t, 9.95, out_t=11.1)
-    pop(c, text_layer('YOUR', 150, WHITE), W / 2, 820, t, 10.05, out_t=11.1)
-    pop(c, text_layer('BRAND', 170, CHAR), W / 2, 990, t, 10.3, out_t=11.1)
-    pop(c, text_layer('WE’RE OFFERING A', 54, WHITE, 'Bold', track=2), W / 2, 680, t, 11.12)
+    pop(c, text_layer('FOR', 70, WHITE, 'Bold', track=2), W / 2, 680, t, 8.10, out_t=9.0)
+    pop(c, text_layer('YOUR', 150, WHITE), W / 2, 820, t, 8.28, out_t=9.0)
+    pop(c, text_layer('BRAND', 170, CHAR), W / 2, 990, t, 8.56, out_t=9.0)
+    pop(c, text_layer('WE’RE OFFERING A', 54, WHITE, 'Bold', track=2), W / 2, 680, t, 9.06)
     # FREE stamp
-    p = prog(t, 11.2, 0.25)
+    p = prog(t, 9.78, 0.25)
     if p > 0:
         s = 1.8 - 0.8 * ease_out(p)
         tag = Image.new('RGBA', (S(640), S(250)), (0, 0, 0, 0))
@@ -289,8 +289,9 @@ def shot3(t):
         paste(tag, text_layer('FREE', 190, BLUE), 320, 125)
         tag = tag.rotate(-4, resample=Image.BICUBIC, expand=True)
         paste(c, tag, W / 2, 860, s, clamp(p * 2.5))
-    slide_up(c, text_layer('CONSULTANCY', 118, WHITE), W / 2, 1100, t, 11.45)
-    slide_up(c, text_layer('MEETING', 118, CHAR), W / 2, 1240, t, 11.75)
+    slide_up(c, text_layer('BUSINESS', 80, WHITE, 'Black', track=6), W / 2, 1060, t, 10.0)
+    slide_up(c, text_layer('CONSULTANCY', 118, WHITE), W / 2, 1180, t, 10.36)
+    slide_up(c, text_layer('MEETING', 118, CHAR), W / 2, 1320, t, 10.88)
     return c
 
 def check_icon(d, cx, cy, r, p):
@@ -303,9 +304,9 @@ def shot4(t):
     """12.95–18.10  'Jahan hum aapko exact action plan batayenge… kahan lag kar raha hai'"""
     c = bg(CHAR); d = ImageDraw.Draw(c)
     corner_marks(d); brand_tag(c, t)
-    pop(c, text_layer('EXACT', 140, WHITE), W / 2, 450, t, 13.45)
-    pop(c, text_layer('ACTION PLAN', 112, BLUE_LT), W / 2, 590, t, 13.7)
-    items = [('Find where your brand is leaking', 14.6), ('Fix your ads & lead flow', 15.75), ('Grow with a clear plan', 16.6)]
+    pop(c, text_layer('EXACT', 140, WHITE), W / 2, 450, t, 12.30)
+    pop(c, text_layer('ACTION PLAN', 112, BLUE_LT), W / 2, 590, t, 12.66)
+    items = [('Find where your brand is lacking', 13.76), ('Fix your ads & lead flow', 14.40), ('Grow with a clear plan', 14.84)]
     for k, (txt, t0) in enumerate(items):
         y = 780 + k * 120
         p = ease_out(prog(t, t0, 0.3))
@@ -319,14 +320,14 @@ def shot4(t):
     gx0, gy1 = 190, 1640
     bars = [120, 190, 270, 380]
     for k, h in enumerate(bars):
-        p = ease_back(prog(t, 15.2 + k * 0.18, 0.4), 1.2)
+        p = ease_back(prog(t, 13.2 + k * 0.16, 0.4), 1.2)
         if p > 0:
             x = gx0 + k * 180
             col = (BLUE if k == 3 else (70, 64, 66)) + (255,)
             rect(d, x, gy1 - h * p, x + 120, gy1, col, 14)
     d.line([S(150), S(gy1 + 4), S(930), S(gy1 + 4)], fill=(255, 255, 255, 60), width=S(3))
     pts = [(200, 1540), (380, 1470), (560, 1380), (760, 1220), (900, 1150)]
-    frac = ease_in_out(prog(t, 15.9, 1.6))
+    frac = ease_in_out(prog(t, 13.7, 1.4))
     if frac > 0:
         tip = partial_polyline(d, pts, frac, WHITE + (255,), 12)
         i = min(len(pts) - 2, int(frac * (len(pts) - 1)))
@@ -345,24 +346,24 @@ def strike(d, x0, y0, x1, y1, p):
 
 def shot5(t):
     """18.10–20.35  "Don't waste your time and money!" — fast hard cuts."""
-    if t < 18.85:
+    if t < 15.90:
         c = bg(CHAR); d = ImageDraw.Draw(c); corner_marks(d)
-        pop(c, text_layer("DON'T", 190, WHITE), W / 2, 820, t, 18.32, 0.16)
-        pop(c, text_layer('WASTE', 190, BLUE_LT), W / 2, 1020, t, 18.45, 0.16)
-    elif t < 19.55:
+        pop(c, text_layer("DON'T", 190, WHITE), W / 2, 820, t, 15.44, 0.16)
+        pop(c, text_layer('WASTE', 190, BLUE_LT), W / 2, 1020, t, 15.68, 0.16)
+    elif t < 16.44:
         c = bg(BLUE); d = ImageDraw.Draw(c); corner_marks(d, (255, 255, 255, 90))
-        p = ease_back(prog(t, 18.85, 0.2))
+        p = ease_back(prog(t, 15.90, 0.2))
         clock_icon(d, W / 2, 780, 190 * (0.6 + 0.4 * p), WHITE + (255,))
-        pop(c, text_layer('YOUR TIME', 120, WHITE), W / 2, 1110, t, 18.9, 0.16)
-        strike(d, 330, 1000, 750, 560, prog(t, 19.2, 0.18))
+        pop(c, text_layer('YOUR TIME', 120, WHITE), W / 2, 1110, t, 15.92, 0.16)
+        strike(d, 330, 1000, 750, 560, prog(t, 16.12, 0.18))
     else:
         c = bg(CHAR); d = ImageDraw.Draw(c); corner_marks(d)
-        p = ease_back(prog(t, 19.55, 0.2))
+        p = ease_back(prog(t, 16.44, 0.2))
         r = 190 * (0.6 + 0.4 * p)
         d.ellipse([S(W / 2 - r), S(780 - r), S(W / 2 + r), S(780 + r)], outline=(70, 200, 120, 255), width=S(18))
         paste(c, text_layer('$', 230, (70, 200, 120)), W / 2, 780, 0.6 + 0.4 * p)
-        pop(c, text_layer('& MONEY', 120, WHITE), W / 2, 1110, t, 19.6, 0.16)
-        strike(d, 330, 1000, 750, 560, prog(t, 19.85, 0.18))
+        pop(c, text_layer('& MONEY', 120, WHITE), W / 2, 1110, t, 16.46, 0.16)
+        strike(d, 330, 1000, 750, 560, prog(t, 16.70, 0.18))
     return c
 
 def shot6(t):
@@ -371,7 +372,7 @@ def shot6(t):
     LW = 860
     cx, cy = W / 2, 760
     # blue pieces first (ring, power icon), pop in
-    for name, t0 in [('B_ring', 20.38), ('B_power', 20.5)]:
+    for name, t0 in [('B_ring', 17.10), ('B_power', 17.20)]:
         p = prog(t, t0, 0.25)
         if p > 0:
             piece = logo_piece(name, BLUE, LW)
@@ -379,38 +380,38 @@ def shot6(t):
     # black letters build in around them, staggered, sliding up
     order = ['S', 'f', 'w', 'i', 'r', 'e']
     for k, L in enumerate(order):
-        t0 = 20.62 + k * 0.08
+        t0 = 17.30 + k * 0.07
         p = ease_out(prog(t, t0, 0.28))
         if p > 0:
             paste(c, logo_piece('L_' + L, CHAR, LW), cx, cy + 50 * (1 - p), 1, clamp(p * 1.6))
     # subtle settle bounce on the whole logo is left to the editor (zoom room)
-    pop(c, text_layer('FREE CONSULTANCY  •  LIMITED SEATS', 34, (110, 106, 107), 'Bold', track=1), W / 2, 980, t, 21.3)
+    pop(c, text_layer('FREE CONSULTANCY  •  LIMITED SEATS', 34, (110, 106, 107), 'Bold', track=1), W / 2, 980, t, 17.95)
     # CTA button
-    p = ease_back(prog(t, 21.15, 0.3), 1.4)
+    p = ease_back(prog(t, 18.30, 0.3), 1.4)
     if p > 0:
-        pulse = 1 + 0.035 * math.sin(max(0, t - 21.6) * 2 * math.pi * 1.6) if t > 21.6 else 1
+        pulse = 1 + 0.035 * math.sin(max(0, t - 18.75) * 2 * math.pi * 1.6) if t > 18.75 else 1
         btn = Image.new('RGBA', (S(820), S(170)), (0, 0, 0, 0)); bd = ImageDraw.Draw(btn)
         bd.rounded_rectangle([0, 0, S(820) - 1, S(170) - 1], radius=S(85), fill=BLUE + (255,))
         paste(btn, text_layer('RESERVE YOUR SEAT', 60, WHITE), 410, 85)
         paste(c, btn, W / 2, 1290, (0.7 + 0.3 * p) * pulse, clamp(p * 2))
     # 'right now' + bouncing arrow down
-    pop(c, text_layer('RIGHT NOW', 46, CHAR, 'Black', track=4), W / 2, 1440, t, 22.3)
-    if t > 20.5:
-        b = abs(math.sin((t - 20.5) * math.pi * 2.2)) * 26
-        a = clamp((t - 20.5) * 4)
+    pop(c, text_layer('RIGHT NOW', 46, CHAR, 'Black', track=4), W / 2, 1440, t, 19.12)
+    if t > 17.46:
+        b = abs(math.sin((t - 17.46) * math.pi * 2.2)) * 26
+        a = clamp((t - 17.46) * 4)
         d.polygon([(S(W / 2 - 40), S(1530 + b)), (S(W / 2 + 40), S(1530 + b)), (S(W / 2), S(1585 + b))],
                   fill=BLUE + (int(255 * a),))
-    pop(c, text_layer('CLICK BELOW', 40, BLUE, 'Black', track=4), W / 2, 1650, t, 20.5)
+    pop(c, text_layer('CLICK BELOW', 40, BLUE, 'Black', track=4), W / 2, 1650, t, 17.46)
     return c
 
 
-CUTS = [(0.00, shot1), (4.30, shot2), (9.00, shot3), (12.95, shot4), (18.10, shot5), (20.35, shot6)]
+CUTS = [(0.00, shot1), (3.80, shot2), (6.80, shot3), (11.40, shot4), (15.24, shot5), (17.05, shot6)]
 
 def render(fi, fps):
     t = fi / fps
     fn = [f for t0, f in CUTS if t >= t0][-1]
     c = fn(t)
-    if fn is shot2 and t >= 8.40:
+    if fn is shot2 and t >= 6.26:
         ring_transition(c, t)
     return finish(c, fi, grain=fn is not shot6)
 
