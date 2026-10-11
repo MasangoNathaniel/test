@@ -28,6 +28,19 @@ products, skies, and almost anything else you can click on.
 
 ## 1. Install (one time)
 
+**Mac (Apple Silicon) or Linux, easiest:** open **Terminal**, paste this line, and press Return:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MasangoNathaniel/test/claude/davinci-magic-mask-tool-fcenxg/freemask/install_from_github.sh | bash
+```
+
+It installs everything into `~/FreeMask` (it even gets its own Python if your Mac doesn't
+have a recent one, without asking for your password), downloads the model, and adds
+FreeMask to Resolve. It takes about 5–10 minutes. Restart Resolve afterwards. Run the same
+line again later to update.
+
+**Or install from a downloaded copy:**
+
 Runs on **Windows 10/11**, **macOS on Apple Silicon (M1 or newer)** and **Linux**. Intel
 Macs aren't supported, because the PyTorch version SAM 2 needs isn't built for them.
 

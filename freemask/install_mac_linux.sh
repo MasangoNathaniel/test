@@ -10,18 +10,25 @@ say() { printf "\n\033[1;35m▸ %s\033[0m\n" "$*"; }
 
 # 1. Find Python 3.10+ (macOS's built-in python3 is often 3.9, which is too old).
 PY=""
+[ -n "${FREEMASK_FORCE_PRIVATE_PYTHON:-}" ] && SKIP_SEARCH=1 || SKIP_SEARCH=""
 for c in "${PYTHON:-}" python3.13 python3.12 python3.11 python3.10 \
          /opt/homebrew/bin/python3 /usr/local/bin/python3 \
          /Library/Frameworks/Python.framework/Versions/Current/bin/python3 python3; do
+  [ -n "$SKIP_SEARCH" ] && break
   [ -z "$c" ] && continue
   if command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
     PY="$c"; break
   fi
 done
 if [ -z "$PY" ]; then
-  echo "FreeMask needs Python 3.10 or newer."
-  echo "Install it from https://www.python.org/downloads/ (or: brew install python@3.12), then run this again."
-  exit 1
+  # No suitable Python: fetch a private copy with uv (no admin password, nothing system-wide).
+  say "Python 3.10+ not found — downloading a private copy just for FreeMask"
+  export PATH="$HOME/.local/bin:$PATH"
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh
+  fi
+  uv python install 3.12
+  PY="$(uv python find 3.12)"
 fi
 say "Using $("$PY" --version) ($PY)"
 

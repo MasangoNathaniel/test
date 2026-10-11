@@ -80,3 +80,24 @@ jobs:
         if: runner.os == 'macOS'
         continue-on-error: true
         run: .venv/bin/python tests/ci_smoke.py --device mps --skip-resolve-check
+
+  one-line-install:
+    name: One-line install · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - name: curl | bash, forcing the private-Python path
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/freemask/install_from_github.sh" \
+            | FREEMASK_BRANCH="${{ github.ref_name }}" FREEMASK_FORCE_PRIVATE_PYTHON=1 bash
+      - name: Installed copy works (real model)
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$HOME/FreeMask/.venv/bin/python" -c "import sys; print(sys.version)"
+          "$HOME/FreeMask/.venv/bin/python" "$HOME/FreeMask/tests/ci_smoke.py"
+          "$HOME/FreeMask/freemask.sh" --help | head -3
