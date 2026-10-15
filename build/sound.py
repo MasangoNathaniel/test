@@ -24,6 +24,13 @@ DROP = 6.80
 T0 = DROP - 12 * B          # first intro downbeat (bar -3)
 STOP = 15.24
 T1 = 17.05                  # logo section downbeat
+import timemap                # SOFWIRE_VO_WORDS=<words.json> re-times everything to a newer VO read
+TMAP = timemap.from_env()
+CUE = TMAP.to_new if TMAP else (lambda t: t)    # v2-authored cue time -> output time
+SAY_BUSINESS = TMAP is None or TMAP.says('business', 'free')
+if TMAP:
+    DUR, DROP, STOP, T1 = TMAP.dur, float(CUE(DROP)), float(CUE(STOP)), float(CUE(T1))
+    N = int(round(DUR * FS)); T0 = DROP - 12 * B
 rng = np.random.default_rng(11)
 
 
@@ -286,7 +293,7 @@ def build_music():
     add(fx, lp(gl, 3000), tr0, 0.05)
 
     # crash/fill at bar 2 (S4 cut) and the drop
-    for tc, g in [(DROP, 0.35), (11.40, 0.22)]:
+    for tc, g in [(DROP, 0.35), (float(CUE(11.40)), 0.22)]:
         add(fx, hp(noise(2.0), 4500) * env_exp(2.0, 0.55), tc, g)
 
     # --- tape stop at STOP on the music buses
@@ -417,66 +424,69 @@ def coin():
     return np.concatenate([bell(n('B6'), 0.08, 0.6)[:int(0.08 * FS)], bell(n('E7'), 0.7, 0.8)]) * 1.2
 
 def build_sfx():
-    """Cue times come from the ElevenLabs word timestamps of voiceover v2."""
+    """Cue times come from the ElevenLabs word timestamps of voiceover v2 (mapped by CUE to a newer read)."""
     s = blank()
+    def A(x, t, g=1.0, pan=0.0):
+        add(s, x, float(CUE(t)), g, pan)
     def P(t, g=0.32, pitch=1.0, w=0.0, pan=0.0):
-        add(s, pop(pitch, w), t, g, pan)
+        A(pop(pitch, w), t, g, pan)
     # S1  stuck(0.74) with zero(1.18) sales(1.48), poor(2.02) engagement and bad(3.06) leads(3.28)
-    add(s, glitch(0.55), 0.05, 0.10)
-    add(s, power_on(), 0.10, 0.22)
+    A(glitch(0.55), 0.05, 0.10)
+    A(power_on(), 0.10, 0.22)
     P(1.18, 0.40, 0.8, 0.9); P(1.48, 0.30, 1.0)
-    add(s, sine_sweep(880, 260, 2.5) * env_ar(int(2.5 * FS), 0.3, 0.6), 1.18, 0.025)   # falling graph tone
+    A(sine_sweep(880, 260, 2.5) * env_ar(int(2.5 * FS), 0.3, 0.6), 1.18, 0.025)   # falling graph tone
     P(2.02, 0.28, 1.15, pan=-0.2); P(3.06, 0.40, 0.75, 1.0)
     # S2  agar aap bhi business(4.36) owner hain, aur ads pe result(5.78) nahi aa rahe(6.56)
-    add(s, whoosh(0.35), 3.80 - 0.30, 0.22, 0.3)
+    A(whoosh(0.35), 3.80 - 0.30, 0.22, 0.3)
     P(4.30, 0.26, 1.1)
-    add(s, swipe(0.3), 4.40, 0.12, -0.3)
+    A(swipe(0.3), 4.40, 0.12, -0.3)
     tt = 4.55
     while tt < 6.40:   # spend counter ticks, sparse and quiet
-        add(s, tick(4200, g=1.0), tt, 0.035, 0.4)
+        A(tick(4200, g=1.0), tt, 0.035, 0.4)
         tt += 0.09
-    P(5.78, 0.36, 0.85, 0.6); add(s, error_tone(), 5.83, 0.20)
-    add(s, swipe(0.25), 5.98, 0.12, 0.4)
+    P(5.78, 0.36, 0.85, 0.6); A(error_tone(), 5.83, 0.20)
+    A(swipe(0.25), 5.98, 0.12, 0.4)
     P(6.28, 0.35, 0.7, 0.8)
-    add(s, whoosh(0.55, 200, 7000, 0.85), DROP - 0.52, 0.38)
-    add(s, impact(52, 1.4), DROP, 0.45)
+    A(whoosh(0.55, 200, 7000, 0.85), 6.80 - 0.52, 0.38)
+    A(impact(52, 1.4), 6.80, 0.45)
     # S3  so don't(6.92) worry(7.18). hum(8.10) aapke(8.28) brand(8.56)… offer(9.06)… free(9.78) business(10.0) consultancy(10.36) meeting(10.88)
     P(6.92, 0.24, 1.2); P(7.18, 0.28, 0.9)
-    add(s, swipe(), 7.93, 0.10)
+    A(swipe(), 7.93, 0.10)
     P(8.10, 0.20, 1.3); P(8.28, 0.24, 1.1); P(8.56, 0.28, 0.9, 0.4)
-    add(s, swipe(), 8.98, 0.10)
+    A(swipe(), 8.98, 0.10)
     P(9.06, 0.18, 1.3)
-    add(s, impact(70, 0.6), 9.78, 0.38); add(s, tick(2500, 0.03), 9.78, 0.5)
-    add(s, swipe(0.22), 10.00, 0.11, 0.0)
-    add(s, swipe(0.25), 10.36, 0.14, -0.3); add(s, swipe(0.25), 10.88, 0.14, 0.3)
+    A(impact(70, 0.6), 9.78, 0.38); A(tick(2500, 0.03), 9.78, 0.5)
+    if SAY_BUSINESS:
+        A(swipe(0.22), 10.00, 0.11, 0.0)
+    A(swipe(0.25), 10.36, 0.14, -0.3); A(swipe(0.25), 10.88, 0.14, 0.3)
     # S4  exact(12.30) batayenge(12.66) ki aapka brand(13.76) kahan pe lack(14.40) kar raha hai(14.84)
-    add(s, whoosh(0.3), 11.40 - 0.26, 0.20, -0.3)
+    A(whoosh(0.3), 11.40 - 0.26, 0.20, -0.3)
     P(12.30, 0.30, 1.0, 0.4); P(12.66, 0.26, 0.85)
     for t0, m in [(13.88, 'E6'), (14.52, 'G6'), (14.96, 'A6')]:
-        add(s, bell(n(m), 1.0, 1.2), t0, 0.16, 0.2)
-        add(s, tick(5000), t0, 0.15)
+        A(bell(n(m), 1.0, 1.2), t0, 0.16, 0.2)
+        A(tick(5000), t0, 0.15)
     for k in range(4):
-        add(s, pop(1.0 + k * 0.18), 13.2 + k * 0.16, 0.14, -0.3 + k * 0.2)
-    add(s, sine_sweep(330, 990, 1.4) * env_ar(int(1.4 * FS), 0.4, 0.4), 13.7, 0.02)
+        A(pop(1.0 + k * 0.18), 13.2 + k * 0.16, 0.14, -0.3 + k * 0.2)
+    A(sine_sweep(330, 990, 1.4) * env_ar(int(1.4 * FS), 0.4, 0.4), 13.7, 0.02)
     # S5  so don't(15.44) waste(15.68) your(15.92) time(16.08) and(16.46) money(16.64) — music stopped
-    add(s, swipe(0.2), 15.26, 0.12)
-    add(s, impact(48, 1.2), 15.44, 0.55)
-    add(s, impact(62, 0.6), 15.68, 0.30)
-    add(s, whoosh(0.18, 600, 8000, 0.7), 15.76, 0.18)
+    A(swipe(0.2), 15.26, 0.12)
+    A(impact(48, 1.2), 15.44, 0.55)
+    A(impact(62, 0.6), 15.68, 0.30)
+    A(whoosh(0.18, 600, 8000, 0.7), 15.76, 0.18)
     for k in range(3):
-        add(s, tick(2600 if k % 2 else 3400, 0.03, 1.0), 15.92 + k * 0.12, 0.45, (-0.3, 0.3)[k % 2])
-    add(s, slash(), 16.12, 0.35, 0.2)
-    add(s, whoosh(0.18, 600, 8000, 0.7), 16.30, 0.18)
-    add(s, coin(), 16.46, 0.20, 0.1)
-    add(s, slash(), 16.70, 0.35, -0.2)
+        A(tick(2600 if k % 2 else 3400, 0.03, 1.0), 15.92 + k * 0.12, 0.45, (-0.3, 0.3)[k % 2])
+    A(slash(), 16.12, 0.35, 0.2)
+    A(whoosh(0.18, 600, 8000, 0.7), 16.30, 0.18)
+    A(coin(), 16.46, 0.20, 0.1)
+    A(slash(), 16.70, 0.35, -0.2)
     # S6  click(17.46) below and reserve(18.30) your seat right(19.12) now(19.36)
-    add(s, whoosh(0.5, 300, 9000, 0.9), T1 - 0.45, 0.18)
-    add(s, impact(45, 1.6), T1 + 0.03, 0.30)
+    A(whoosh(0.5, 300, 9000, 0.9), 17.05 - 0.45, 0.18)
+    A(impact(45, 1.6), 17.05 + 0.03, 0.30)
     for k in range(6):
-        add(s, tick(3000 + k * 400, 0.025), 17.30 + k * 0.07, 0.22, -0.5 + k * 0.2)
+        A(tick(3000 + k * 400, 0.025), 17.30 + k * 0.07, 0.22, -0.5 + k * 0.2)
     P(17.46, 0.16, 1.4)
     P(17.95, 0.12, 1.5)
-    add(s, tick(2200, 0.03), 18.30, 0.4); add(s, tick(3200, 0.03), 18.34, 0.3); P(18.32, 0.22, 1.0, 0.3)
+    A(tick(2200, 0.03), 18.30, 0.4); A(tick(3200, 0.03), 18.34, 0.3); P(18.32, 0.22, 1.0, 0.3)
     P(19.12, 0.24, 1.1, 0.3)
     s = s + reverb(s, IR_SHORT, 0.18)
     return s

@@ -14,6 +14,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 W, H, SS = 1080, 1920, 2
 SW, SH = W * SS, H * SS
 DUR = 19.84
+import timemap                       # SOFWIRE_VO_WORDS=<words.json>: re-time to a newer VO read
+TMAP = timemap.from_env()
+SAY_BUSINESS = TMAP is None or TMAP.says('business', 'free')
+if TMAP:
+    DUR = TMAP.dur
 
 CHAR = (35, 31, 32)       # logo black
 CHAR_DK = (24, 21, 22)
@@ -290,9 +295,11 @@ def shot3(t):
         paste(tag, text_layer('FREE', 190, BLUE), 320, 125)
         tag = tag.rotate(-4, resample=Image.BICUBIC, expand=True)
         paste(c, tag, W / 2, 860, s, clamp(p * 2.5))
-    slide_up(c, text_layer('BUSINESS', 80, WHITE, 'Black', track=6), W / 2, 1060, t, 10.0)
-    slide_up(c, text_layer('CONSULTANCY', 118, WHITE), W / 2, 1180, t, 10.36)
-    slide_up(c, text_layer('MEETING', 118, CHAR), W / 2, 1320, t, 10.88)
+    if SAY_BUSINESS:
+        slide_up(c, text_layer('BUSINESS', 80, WHITE, 'Black', track=6), W / 2, 1060, t, 10.0)
+    y0 = 1180 if SAY_BUSINESS else 1100                   # read without "business": v1 layout
+    slide_up(c, text_layer('CONSULTANCY', 118, WHITE), W / 2, y0, t, 10.36)
+    slide_up(c, text_layer('MEETING', 118, CHAR), W / 2, y0 + 140, t, 10.88)
     return c
 
 def check_icon(d, cx, cy, r, p):
@@ -410,6 +417,8 @@ CUTS = [(0.00, shot1), (3.80, shot2), (6.80, shot3), (11.40, shot4), (15.24, sho
 
 def render(fi, fps):
     t = fi / fps
+    if TMAP:
+        t = float(TMAP.to_old(t))                         # output time -> authored (v2) time
     fn = [f for t0, f in CUTS if t >= t0][-1]
     c = fn(t)
     if fn is shot2 and t >= 6.26:

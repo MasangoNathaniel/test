@@ -3,33 +3,33 @@
 <fcpxml version="1.9">
   <resources>
     <format id="r1" name="FFVideoFormat1080x1920p30" frameDuration="1/30s" width="1080" height="1920"/>
-    <asset id="r2" name="S1_hook" start="0s" duration="114/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S1_hook.mov"/></asset>
+    <asset id="r2" name="S1_hook" start="0s" duration="104/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S1_hook.mov"/></asset>
     <asset id="r3" name="S2_no_results" start="0s" duration="90/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S2_no_results.mov"/></asset>
-    <asset id="r4" name="S3_free_consultancy" start="0s" duration="138/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S3_free_consultancy.mov"/></asset>
-    <asset id="r5" name="S4_action_plan" start="0s" duration="116/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S4_action_plan.mov"/></asset>
-    <asset id="r6" name="S5_dont_waste" start="0s" duration="54/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S5_dont_waste.mov"/></asset>
-    <asset id="r7" name="S6_logo_cta" start="0s" duration="83/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S6_logo_cta.mov"/></asset>
-    <asset id="rvo" name="voiceover_clean" start="0s" duration="595/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/voiceover_clean.wav"/></asset>
-    <asset id="rbed" name="sofwire_music_sfx_bed" start="0s" duration="595/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/audio/sofwire_music_sfx_bed.wav"/></asset>
+    <asset id="r4" name="S3_free_consultancy" start="0s" duration="125/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S3_free_consultancy.mov"/></asset>
+    <asset id="r5" name="S4_action_plan" start="0s" duration="130/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S4_action_plan.mov"/></asset>
+    <asset id="r6" name="S5_dont_waste" start="0s" duration="44/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S5_dont_waste.mov"/></asset>
+    <asset id="r7" name="S6_logo_cta" start="0s" duration="92/30s" hasVideo="1" format="r1"><media-rep kind="original-media" src="file:///Sofwire_Ad/shots/S6_logo_cta.mov"/></asset>
+    <asset id="rvo" name="voiceover_clean" start="0s" duration="585/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/voiceover_clean.wav"/></asset>
+    <asset id="rbed" name="sofwire_music_sfx_bed" start="0s" duration="585/30s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"><media-rep kind="original-media" src="file:///Sofwire_Ad/audio/sofwire_music_sfx_bed.wav"/></asset>
   </resources>
   <library>
     <event name="Sofwire Ad">
-      <project name="Sofwire_Ad_9x16_v2">
-        <sequence format="r1" duration="595/30s" tcStart="0s" audioLayout="stereo" audioRate="48k">
+      <project name="Sofwire_Ad_9x16_v3">
+        <sequence format="r1" duration="585/30s" tcStart="0s" audioLayout="stereo" audioRate="48k">
           <spine>
-        <asset-clip ref="r2" offset="0/30s" name="S1_hook" duration="114/30s">
-          <asset-clip ref="rvo" lane="-1" offset="0s" name="VO v2" duration="595/30s" audioRole="dialogue"/>
-          <asset-clip ref="rbed" lane="-2" offset="0s" name="Music+SFX bed" duration="595/30s" audioRole="music"/>
+        <asset-clip ref="r2" offset="0/30s" name="S1_hook" duration="104/30s">
+          <asset-clip ref="rvo" lane="-1" offset="0s" name="VO v3" duration="585/30s" audioRole="dialogue"/>
+          <asset-clip ref="rbed" lane="-2" offset="0s" name="Music+SFX bed" duration="585/30s" audioRole="music"/>
         </asset-clip>
-        <asset-clip ref="r3" offset="114/30s" name="S2_no_results" duration="90/30s">
+        <asset-clip ref="r3" offset="104/30s" name="S2_no_results" duration="90/30s">
         </asset-clip>
-        <asset-clip ref="r4" offset="204/30s" name="S3_free_consultancy" duration="138/30s">
+        <asset-clip ref="r4" offset="194/30s" name="S3_free_consultancy" duration="125/30s">
         </asset-clip>
-        <asset-clip ref="r5" offset="342/30s" name="S4_action_plan" duration="116/30s">
+        <asset-clip ref="r5" offset="319/30s" name="S4_action_plan" duration="130/30s">
         </asset-clip>
-        <asset-clip ref="r6" offset="458/30s" name="S5_dont_waste" duration="54/30s">
+        <asset-clip ref="r6" offset="449/30s" name="S5_dont_waste" duration="44/30s">
         </asset-clip>
-        <asset-clip ref="r7" offset="512/30s" name="S6_logo_cta" duration="83/30s">
+        <asset-clip ref="r7" offset="493/30s" name="S6_logo_cta" duration="92/30s">
         </asset-clip>
           </spine>
         </sequence>

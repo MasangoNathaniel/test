@@ -232,7 +232,7 @@ def build_music():
     d = DROP - r0
     rz = tv_filter(noise(d), np.geomspace(400, 7000, int(d * FS)), 'high') * np.linspace(0, 1, int(d * FS)) ** 2.4
     add(fx, rz, r0, 0.13)
-    for tc, g in [(DROP, 0.25), (11.40, 0.15)]:
+    for tc, g in [(DROP, 0.25), (float(S.CUE(11.40)), 0.15)]:
         add(fx, lp(hp(noise(1.8), 4000), 10000) * env_exp(1.8, 0.5), tc, g)
     add(hits, tuned_hit(mtof(n('A3')), 1.3), DROP, 0.6)          # extra weight on the drop
 
