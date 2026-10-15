@@ -2,6 +2,8 @@
 
 Re-timed to the client's new voiceover (v2), now with wind and background noise removed (`voiceover_clean.wav`). Every on-screen word and sound effect is locked to ElevenLabs word timestamps (`assets/voiceover_v2_words.json`), not estimated.
 
+**Music (new):** a Desi trap beat in the style of the client's reference (`assets/ref/client_music_ref.mp3`): 140 BPM, A harmonic minor, sitar riff, tabla, tuned drum hits on every beat and a heavy 808. Same edit points as before: drop at 6.80s, tape-stop at 15.24s, logo resolve at 17.05s. The previous melodic-house track is kept in `audio/alt_house_music/`.
+
 ## Files
 | File | What |
 |---|---|
@@ -13,11 +15,12 @@ Re-timed to the client's new voiceover (v2), now with wind and background noise 
 | `audio/voiceover_clean_spectral.wav` | Earlier version: steady-noise reduction only (wind still audible) |
 | `audio/voiceover_clean_gentle.wav` | Earlier version: lighter steady-noise reduction |
 | `audio/voiceover_original_noisy.m4a` | The original recording, untouched |
-| `audio/sofwire_music_sfx_bed.wav` | Music + sound effects, already ducked under the voiceover. Put it on A2 at 0:00 |
+| `audio/sofwire_music_sfx_bed.wav` | New Desi-style music + sound effects, already ducked under the voiceover. Put it on A2 at 0:00 |
 | `audio/music_unducked.wav` | Music stem, not ducked |
 | `audio/sfx_unducked.wav` | All sound effects on one track, each placed on its cue |
 | `audio/sfx_oneshots/*.wav` | 18 separate sound-effect files to place or swap yourself |
 | `audio/full_mix_reference_-14LUFS.wav` | Finished mix, for reference |
+| `audio/alt_house_music/` | The previous melodic-house version: bed, music stem, mix and preview (repo folder only) |
 | `Sofwire_Ad_timeline.fcpxml` | Resolve timeline: V1 shots, A1 voiceover, A2 bed |
 
 All audio is 48 kHz / 24-bit stereo and sample-aligned from 0:00.
@@ -63,6 +66,9 @@ If the XML gives trouble: drop S1–S6 on V1 in order, the voiceover on A1 and t
 | 18.30 | reserve | "RESERVE YOUR SEAT" button | UI click + pop | 11, 03 |
 | 19.12 | right now | "RIGHT NOW" | pop | 03 |
 
+## What changed most recently
+- Music replaced with a Desi trap beat matching the client's reference track; same cue points, same sound effects.
+
 ## What changed from v1
 - New voiceover is 19.8s (was 23.1s); the whole cut is re-timed to it.
 - **Sync fix:** "DON'T WORRY" now appears exactly on "so don't worry" (6.9s). In v1 it came after the blue transition, late against this read. The blue fill now lands just before the line.
@@ -70,5 +76,5 @@ If the XML gives trouble: drop S1–S6 on V1 in order, the voiceover on A1 and t
 - Copy now follows the read: "FREE **BUSINESS** CONSULTANCY MEETING", and the first checklist item now reads "where your brand is lacking".
 - Music re-arranged: a 3-bar intro, the drop at 6.80s, the tape-stop at 15.24s, the logo bloom at 17.05s.
 
-Re-render: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov` · `python3 build/sound.py <vo 48k wav> out/audio` · `python3 build/export_oneshots.py out/audio/sfx_oneshots` · `python3 build/denoise.py <vo 48k wav> out/voiceover_clean.wav 26`
+Re-render: `python3 build/render.py build/logo out/sofwire_graphics_prores.mov` · `python3 build/sound_desi.py <vo 48k 16-bit wav> out/audio` (house version: `build/sound.py`) · `python3 build/export_oneshots.py out/audio/sfx_oneshots` · `python3 build/denoise.py <vo 48k wav> out/voiceover_clean.wav 26`
 (v1 versions kept as `build/render_v1_23s.py`, `build/sound_v1_23s.py`)

@@ -499,12 +499,11 @@ def write_wav(path, x):
 def rms_db(x):
     return 20 * np.log10(np.sqrt((x ** 2).mean()) + 1e-12)
 
-if __name__ == '__main__':
-    vo_path, out = sys.argv[1], sys.argv[2]
+def mix_and_write(vo_path, out, music, sfx, ref_span=(DROP, STOP)):
+    """Level music+sfx against the VO, duck under speech, write stems, bed and mix check."""
     os.makedirs(out, exist_ok=True)
     vo = read_wav(vo_path)[:, :N]
     vo = np.pad(vo, ((0, 0), (0, N - vo.shape[1])))
-    music = build_music(); sfx = build_sfx()
     # VO envelope → ducking gain (attack 25ms, release 300ms)
     env = np.abs(vo).mean(0)
     w = int(0.02 * FS); env = np.convolve(env, np.ones(w) / w, 'same')
@@ -520,7 +519,7 @@ if __name__ == '__main__':
     duck_sfx = 10 ** (-3 * g / 20)
     # levels: speech-active VO RMS as reference
     vo_ref = rms_db(vo[:, active > 0.5])
-    m_gain = 10 ** ((vo_ref - 7 - rms_db(music[:, T(DROP):T(STOP)])) / 20)
+    m_gain = 10 ** ((vo_ref - 7 - rms_db(music[:, T(ref_span[0]):T(ref_span[1])])) / 20)
     s_gain = m_gain * 1.0
     music *= m_gain; sfx *= s_gain
     write_wav(f'{out}/music_unducked.wav', music)
@@ -531,3 +530,7 @@ if __name__ == '__main__':
     write_wav(f'{out}/_mix_check.wav', mix)
     print('vo_ref dB', round(vo_ref, 1), 'music gain dB', round(20 * np.log10(m_gain), 1),
           'bed peak', round(20 * np.log10(np.abs(bed).max()), 1), 'mix peak', round(20 * np.log10(np.abs(mix).max()), 1))
+
+
+if __name__ == '__main__':
+    mix_and_write(sys.argv[1], sys.argv[2], build_music(), build_sfx())
